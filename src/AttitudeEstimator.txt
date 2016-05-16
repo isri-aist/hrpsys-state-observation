@@ -1,0 +1,64 @@
+/**
+
+\page AttitudeEstimator
+
+\section introduction 概要
+
+加速度、角速度から姿勢角を推定するカルマンフィルタコンポーネント
+
+<table>
+<tr><th>名称</th><td>AttitudeEstimator</td></tr>
+<tr><th>カテゴリ</th><td>example</td></tr>
+<tr><th>初期化関数名</th><td>AttitudeEstimatorInit</td></tr>
+</table>
+
+\section dataports データポート
+
+\subsection inports 入力ポート
+
+<table>
+<tr><th>ポート名</th><th>データ型</th><th>単位</th><th>説明</th></tr>
+<tr><td>acc</td><td>RTC::TimedAcceleration3D</td><td>[m/s^2]</td><td>姿勢センサの加速度出力（必ずしも腰の加速度ではないことに注意）</td></tr>
+<tr><td>accRef</td><td>RTC::TimedAcceleration3D</td><td>[m/s^2]</td><td>姿勢センサの目標加速度</td></tr>
+<tr><td>rate</td><td>RTC::TimedAngularVelocity3D</td><td>[rad/s]</td><td>姿勢センサの角速度出力</td></tr>
+</table>
+
+\subsection outports 出力ポート
+
+<table>
+<tr><th>ポート名</th><th>データ型</th><th>単位</th><th>説明</th></tr>
+<tr><td>rpy</td><td>RTC::TimedOrientation3D</td><td>[rad]</td><td>姿勢センサのRoll-Pitch-Yaw出力</td></tr>
+</table>
+
+\section serviceports サービスポート
+
+\subsection provider プロバイダ
+
+ありません。
+
+\subsection consumer コンシューマ
+
+ありません。
+
+\section configuration コンフィギュレーション
+
+<table>
+<tr><th>名称</th><th>型</th><th>単位</th><th>デフォルト値</th><th>説明</th></tr>
+<tr><td>compensateMode</td><td>int</td><td></td><td>1</td><td>ロボットの動作による加速度成分を補償するモードのON/OFF</td></tr>
+<tr><td>offset</td><td>std::vector<double></td><td>[rad]</td><td>0,0,0</td><td>姿勢角出力に加算するオフセット値</td></tr>
+<tr><td>Q</td><td>double</td><td></td><td>0.01</td><td></td></tr>
+<tr><td>Qbw</td><td>double</td><td></td><td>0.001</td><td>ジャイロのドリフトによる影響を抑制。ジャイロのドリフトが大きい場合に0.001～0.001程度の範囲で大きくする</td></tr>
+<tr><td>R</td><td>double</td><td></td><td>0.1</td><td></td></tr>
+<tr><td>debugLevel</td><td>int</td><td></td><td>0</td><td>デバッグ出力のレベル</td></tr>
+</table>
+
+\section conf コンフィギュレーションファイル
+
+<table>
+<tr><th>キー</th><th>型</th><th>単位</th><th>説明</th></tr>
+<tr><td>dt</td><td>double</td><td>[s]</td><td>サンプリング時間</td></tr>
+<tr><td>Tgsens</td><td>double</td><td>[s]</td><td>加速度センサのフィルタ時定数</td></tr>
+<tr><td>filter_order</td><td>int</td><td></td><td>加速度センサのローパスフィルタの次数、1または3</td></tr>
+</table>
+
+ */
