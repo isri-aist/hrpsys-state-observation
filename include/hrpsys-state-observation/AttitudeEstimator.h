@@ -18,6 +18,9 @@
 #include <rtm/idl/BasicDataTypeSkel.h>
 #include <rtm/idl/ExtendedDataTypesSkel.h>
 
+#include <state-observation/dynamical-system/imu-dynamical-system.hpp>
+#include <state-observation/observer/extended-kalman-filter.hpp>
+
 // Service implementation headers
 // <rtc-template block="service_impl_h">
 
@@ -43,7 +46,7 @@ class AttitudeEstimator
 
   // The finalize action (on ALIVE->END transition)
   // formaer rtc_exiting_entry()
-  // virtual RTC::ReturnCode_t onFinalize();
+ virtual RTC::ReturnCode_t onFinalize();
 
   // The startup action when ExecutionContext startup
   // former rtc_starting_entry()
@@ -134,6 +137,30 @@ class AttitudeEstimator
   double m_Tgsens, m_dt;
   int m_filter_order;
   bool m_debugLevel;
+
+  ///Sizes of the states for the state, the measurement, and the input vector
+  const unsigned stateSize_=18;
+  const unsigned measurementSize_=6;
+  const unsigned inputSize_=6;
+
+  double dt_;
+
+  ///initialization of the extended Kalman filter
+  stateObservation::ExtendedKalmanFilter filter_;
+
+  ///initalization of the functor
+  stateObservation::IMUDynamicalSystem imuFunctor_;
+
+  stateObservation::Vector xk_;
+  stateObservation::Vector uk_;
+
+  stateObservation::Matrix q_;
+  stateObservation::Matrix r_;
+
+  stateObservation::IndexedMatrixArray sensorLog;
+  stateObservation::IndexedMatrixArray orientationLog;
+  stateObservation::IndexedMatrixArray eulerLog;
+
 };
 
 

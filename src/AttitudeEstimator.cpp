@@ -7,9 +7,17 @@
  * $Id$
  */
 
+#include <hrpUtil/Eigen3d.h>
+#include <Eigen/Geometry>
+
 #include <hrpsys-state-observation/AttitudeEstimator.h>
 #include <hrpsys-state-observation/VectorConvert.h>
-#include <hrpUtil/Eigen3d.h>
+
+
+const int statesize=18;
+const int inputsize=6;
+
+
 
 // Module specification
 // <rtc-template block="module_spec">
@@ -34,7 +42,6 @@ static const char* AttitudeEstimator_spec[] =
     "conf.default.Tgsens", "0.05",
     "conf.default.filter_order", "0",
     "conf.default.debugLevel", "0",
-
     ""
   };
 // </rtc-template>
@@ -49,13 +56,30 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
     m_rpyOut("rpy", m_rpy),
 
     // </rtc-template>
-	dummy(0)
+	dummy(0),
+  filter_(stateSize_, measurementSize_, inputSize_, false),
+  dt_(0.005),
+  q_(stateObservation::Matrix::Identity(stateSize_,stateSize_)*1e-9),
+  r_(stateObservation::Matrix::Identity(measurementSize_,measurementSize_)*1e-4),
+  uk_(inputsize),
+  xk_(statesize)
 {
+
+    ///initialization of the extended Kalman filter
+    imuFunctor_.setSamplingPeriod(dt_);
+    filter_.setFunctor(& imuFunctor_);
+
+    filter_.setQ(q_);
+    filter_.setR(r_);
+    xk_.setZero();
+    uk_.setZero();
+    filter_.setState(xk_,0);
+    filter_.setStateCovariance(q_);
+
 }
 
 AttitudeEstimator::~AttitudeEstimator()
 {
-
 }
 
 
@@ -106,12 +130,15 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
 
 
 
-/*
+
 RTC::ReturnCode_t AttitudeEstimator::onFinalize()
 {
+  sensorLog.writeInFile("/home/benallegue/tmp/sensor.log");
+  orientationLog.writeInFile("/home/benallegue/tmp/ori.log");
+  eulerLog.writeInFile("/home/benallegue/tmp/euler.log");
   return RTC::RTC_OK;
 }
-*/
+
 
 /*
 RTC::ReturnCode_t AttitudeEstimator::onStartup(RTC::UniqueId ec_id)
@@ -165,36 +192,71 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   }
 
   // processing
-  double acc[3];
+  stateObservation::Vector6 measurement;
   if (m_compensateMode){
-      acc[0] = m_acc.data.ax - m_accRef.data.ax;
-      acc[1] = m_acc.data.ay - m_accRef.data.ay;
-      acc[2] = m_acc.data.az - m_accRef.data.az;
+      measurement[0] = m_acc.data.ax - m_accRef.data.ax;
+      measurement[1] = m_acc.data.ay - m_accRef.data.ay;
+      measurement[2] = m_acc.data.az - m_accRef.data.az;
   }else{
-      acc[0] = m_acc.data.ax;
-      acc[1] = m_acc.data.ay;
-      acc[2] = m_acc.data.az;
+      measurement[0] = m_acc.data.ax;
+      measurement[1] = m_acc.data.ay;
+      measurement[2] = m_acc.data.az;
   }
 
-  bool ret = true;
-  if (!m_UseGsensFilter){
-      }else{
-    // UseGsensFilter
-    // by s.kajita 2010 Jan.7
-  }
+  measurement[3]=m_rate.data.avx;
+  measurement[5]=m_rate.data.avz;
+  measurement[4]=m_rate.data.avy;
+
+  int time=filter_.getCurrentTime();
+
+  filter_.setInput(uk_,time);
+
+  filter_.setMeasurement(measurement,time+1);
+
+
+  ///set the derivation step for the finite difference method
+  stateObservation::Vector dx=filter_.stateVectorConstant(1)*1e-8;
+
+
+  stateObservation::Matrix a=filter_.getAMatrixFD(dx);
+  stateObservation::Matrix c= filter_.getCMatrixFD(dx);
+
+  filter_.setA(a);
+  filter_.setC(c);
+
+
+  ///get the estimation and give it to the array
+  xk_=filter_.getEstimatedState(time+1);
+
+  stateObservation::Vector3 orientation(xk_.segment<3>(stateObservation::kine::ori));
+
+
+  stateObservation::AngleAxis anax(
+                stateObservation::kine::rotationVectorToAngleAxis(orientation));
+
+  stateObservation::Vector3 euler(anax.toRotationMatrix().eulerAngles(2,1,0));
+
+  std::cout<< anax.toRotationMatrix() << std::endl<< std::endl;
+  std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
+
+
 
   // output to OutPorts
   m_rpy.tm = tm;
-  m_rpy.data.r = 0;
-  m_rpy.data.p = 0;
-  m_rpy.data.y = 0;
+  m_rpy.data.r = orientation[0];
+  m_rpy.data.p = orientation[1];
+  m_rpy.data.y = orientation[2];
   m_rpyOut.write();
   if (m_debugLevel > 0){
     printf("acc:%6.3f %6.3f %6.3f, rate:%6.3f %6.3f %6.3f, rpy:%6.3f %6.3f %6.3f \n",
-	   acc[0], acc[1], acc[2],
-	   m_rate.data.avx, m_rate.data.avy, m_rate.data.avz,
+	   measurement[0], measurement[1], measurement[2],
+	   measurement[3], measurement[4], measurement[5],
 	   m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
   }
+
+  sensorLog.pushBack(measurement);
+  orientationLog.pushBack(orientation);
+  eulerLog.pushBack(euler);
 
   return RTC::RTC_OK;
 }
