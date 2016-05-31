@@ -161,6 +161,9 @@ class AttitudeEstimator
   stateObservation::IndexedMatrixArray orientationLog;
   stateObservation::IndexedMatrixArray eulerLog;
 
+  stateObservation::Matrix3 Kpt_, Kdt_;
+  stateObservation::Matrix3 Kpo_, Kdo_;
+
 };
 
 
