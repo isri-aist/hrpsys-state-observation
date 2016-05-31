@@ -59,11 +59,14 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
 	dummy(0),
   filter_(stateSize_, measurementSize_, inputSize_, false),
   dt_(0.005),
-  q_(stateObservation::Matrix::Identity(stateSize_,stateSize_)*1e-9),
+  q_(stateObservation::Matrix::Identity(stateSize_,stateSize_)*1e-12),
   r_(stateObservation::Matrix::Identity(measurementSize_,measurementSize_)*1e-4),
   uk_(inputsize),
   xk_(statesize)
 {
+    q_(9,9)=q_(10,10)=q_(11,11)=1e-6;
+
+    r_(3,3)=r_(4,4)=r_(5,5)=1e-10;
 
     ///initialization of the extended Kalman filter
     imuFunctor_.setSamplingPeriod(dt_);
@@ -75,6 +78,19 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
     uk_.setZero();
     filter_.setState(xk_,0);
     filter_.setStateCovariance(q_);
+
+    Kpt_<<-10,0,0,
+           0,-10,0,
+           0,0,-10;
+    Kdt_<<-1,0,0,
+           0,-1,0,
+           0,0,-1;
+    Kpo_<<-0.01,0,0,
+           0,-0.01,0,
+           0,0,-10;
+    Kdo_<<-0.01,0,0,
+           0,-0.01,0,
+           0,0,-10;
 
 }
 
@@ -209,6 +225,14 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   int time=filter_.getCurrentTime();
 
+  ///damped linear and angular spring
+  uk_.head<3>()=Kpt_*xk_.segment<3>(stateObservation::kine::pos)
+              +Kdt_*xk_.segment<3>(stateObservation::kine::linVel);
+  uk_.tail<3>()=Kpo_*xk_.segment<3>(stateObservation::kine::ori)
+              +Kdo_*xk_.segment<3>(stateObservation::kine::angVel);
+
+
+
   filter_.setInput(uk_,time);
 
   filter_.setMeasurement(measurement,time+1);
@@ -239,13 +263,18 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   std::cout<< anax.toRotationMatrix() << std::endl<< std::endl;
   std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
 
+  stateObservation::Vector3 offset(m_offset[0],m_offset[1],m_offset[2]);
+
+  stateObservation::Vector3 output(orientation+offset);
+
+
 
 
   // output to OutPorts
   m_rpy.tm = tm;
-  m_rpy.data.r = orientation[0];
-  m_rpy.data.p = orientation[1];
-  m_rpy.data.y = orientation[2];
+  m_rpy.data.r = output[0];
+  m_rpy.data.p = output[1];
+  m_rpy.data.y = output[2];
   m_rpyOut.write();
   if (m_debugLevel > 0){
     printf("acc:%6.3f %6.3f %6.3f, rate:%6.3f %6.3f %6.3f, rpy:%6.3f %6.3f %6.3f \n",
