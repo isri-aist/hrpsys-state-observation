@@ -152,6 +152,8 @@ RTC::ReturnCode_t AttitudeEstimator::onFinalize()
   sensorLog.writeInFile("/home/benallegue/tmp/sensor.log");
   orientationLog.writeInFile("/home/benallegue/tmp/ori.log");
   eulerLog.writeInFile("/home/benallegue/tmp/euler.log");
+  offsetLog.writeInFile("/home/benallegue/tmp/offset.log");
+  myOutLog.writeInFile("/home/benallegue/tmp/myout.log");
   return RTC::RTC_OK;
 }
 
@@ -285,7 +287,9 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   sensorLog.pushBack(measurement);
   orientationLog.pushBack(orientation);
+  offsetLog.pushBack(offset);
   eulerLog.pushBack(euler);
+  myOutLog.pushBack(output);
 
   return RTC::RTC_OK;
 }
