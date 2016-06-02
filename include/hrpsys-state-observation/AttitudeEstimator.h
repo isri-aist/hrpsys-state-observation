@@ -166,6 +166,8 @@ class AttitudeEstimator
   stateObservation::Matrix3 Kpt_, Kdt_;
   stateObservation::Matrix3 Kpo_, Kdo_;
 
+
+
 };
 
 

@@ -22,28 +22,28 @@ const int inputsize=6;
 // Module specification
 // <rtc-template block="module_spec">
 static const char* AttitudeEstimator_spec[] =
-  {
-    "implementation_id", "AttitudeEstimator",
-    "type_name",         "AttitudeEstimator",
-    "description",       "Attitude Estimator component",
-    "version",           "1.0",
-    "vendor",            "AIST",
-    "category",          "example",
-    "activity_type",     "DataFlowComponent",
-    "max_instance",      "10",
-    "language",          "C++",
-    "lang_type",         "compile",
-    // Configuration variables
-    "conf.default.compensateMode", "1",
-    "conf.default.offset", "0,0,0",
-    "conf.default.Q", "0.01",
-    "conf.default.Qbw", "0.001",
-    "conf.default.R", "0.1",
-    "conf.default.Tgsens", "0.05",
-    "conf.default.filter_order", "0",
-    "conf.default.debugLevel", "0",
-    ""
-  };
+{
+  "implementation_id", "AttitudeEstimator",
+  "type_name",         "AttitudeEstimator",
+  "description",       "Attitude Estimator component",
+  "version",           "1.0",
+  "vendor",            "AIST",
+  "category",          "example",
+  "activity_type",     "DataFlowComponent",
+  "max_instance",      "10",
+  "language",          "C++",
+  "lang_type",         "compile",
+  // Configuration variables
+  "conf.default.compensateMode", "1",
+  "conf.default.offset", "0,0,0",
+  "conf.default.Q", "0.01",
+  "conf.default.Qbw", "0.001",
+  "conf.default.R", "0.1",
+  "conf.default.Tgsens", "0.05",
+  "conf.default.filter_order", "0",
+  "conf.default.debugLevel", "0",
+  ""
+};
 // </rtc-template>
 
 AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
@@ -56,41 +56,41 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
     m_rpyOut("rpy", m_rpy),
 
     // </rtc-template>
-	dummy(0),
-  filter_(stateSize_, measurementSize_, inputSize_, false),
-  dt_(0.005),
-  q_(stateObservation::Matrix::Identity(stateSize_,stateSize_)*1e-12),
-  r_(stateObservation::Matrix::Identity(measurementSize_,measurementSize_)*1e-4),
-  uk_(inputsize),
-  xk_(statesize)
+    dummy(0),
+    filter_(stateSize_, measurementSize_, inputSize_, false),
+    dt_(0.005),
+    q_(stateObservation::Matrix::Identity(stateSize_,stateSize_)*1e-12),
+    r_(stateObservation::Matrix::Identity(measurementSize_,measurementSize_)*1e-4),
+    uk_(inputsize),
+    xk_(statesize)
 {
-    q_(9,9)=q_(10,10)=q_(11,11)=1e-6;
+  q_(9,9)=q_(10,10)=q_(11,11)=1e-6;
 
-    r_(3,3)=r_(4,4)=r_(5,5)=1e-10;
+  r_(3,3)=r_(4,4)=r_(5,5)=1e-10;
 
-    ///initialization of the extended Kalman filter
-    imuFunctor_.setSamplingPeriod(dt_);
-    filter_.setFunctor(& imuFunctor_);
+  ///initialization of the extended Kalman filter
+  imuFunctor_.setSamplingPeriod(dt_);
+  filter_.setFunctor(& imuFunctor_);
 
-    filter_.setQ(q_);
-    filter_.setR(r_);
-    xk_.setZero();
-    uk_.setZero();
-    filter_.setState(xk_,0);
-    filter_.setStateCovariance(q_);
+  filter_.setQ(q_);
+  filter_.setR(r_);
+  xk_.setZero();
+  uk_.setZero();
+  filter_.setState(xk_,0);
+  filter_.setStateCovariance(q_);
 
-    Kpt_<<-10,0,0,
-           0,-10,0,
-           0,0,-10;
-    Kdt_<<-1,0,0,
-           0,-1,0,
-           0,0,-1;
-    Kpo_<<-0.01,0,0,
-           0,-0.01,0,
-           0,0,-10;
-    Kdo_<<-0.01,0,0,
-           0,-0.01,0,
-           0,0,-10;
+  Kpt_<<-10,0,0,
+       0,-10,0,
+       0,0,-10;
+  Kdt_<<-1,0,0,
+       0,-1,0,
+       0,0,-1;
+  Kpo_<<-0.01,0,0,
+       0,-0.01,0,
+       0,0,-10;
+  Kdo_<<-0.01,0,0,
+       0,-0.01,0,
+       0,0,-10;
 
 }
 
@@ -178,7 +178,7 @@ RTC::ReturnCode_t AttitudeEstimator::onActivated(RTC::UniqueId ec_id)
 
   std::cout << "AttitudeEstimator: Q = " << m_Q << ", Q_bw = " << m_Qbw
             << ", R = " << m_R << ", dt = " << m_dt << ", filter order = "
-	    << m_filter_order << ", Tgsens = " << m_Tgsens << std::endl;
+            << m_filter_order << ", Tgsens = " << m_Tgsens << std::endl;
 
   return RTC::RTC_OK;
 }
@@ -203,22 +203,28 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   if (m_accIn.isNew()) m_accIn.read();
   if (m_rateIn.isNew()) m_rateIn.read();
 
-  if (m_accRefIn.isNew()){
-      m_accRefIn.read();
-  }else{
-      m_accRef.data.ax = m_accRef.data.ay = m_accRef.data.az = 0.0;
+  if (m_accRefIn.isNew())
+  {
+    m_accRefIn.read();
+  }
+  else
+  {
+    m_accRef.data.ax = m_accRef.data.ay = m_accRef.data.az = 0.0;
   }
 
   // processing
   stateObservation::Vector6 measurement;
-  if (m_compensateMode){
-      measurement[0] = m_acc.data.ax - m_accRef.data.ax;
-      measurement[1] = m_acc.data.ay - m_accRef.data.ay;
-      measurement[2] = m_acc.data.az - m_accRef.data.az;
-  }else{
-      measurement[0] = m_acc.data.ax;
-      measurement[1] = m_acc.data.ay;
-      measurement[2] = m_acc.data.az;
+  if (m_compensateMode)
+  {
+    measurement[0] = m_acc.data.ax - m_accRef.data.ax;
+    measurement[1] = m_acc.data.ay - m_accRef.data.ay;
+    measurement[2] = m_acc.data.az - m_accRef.data.az;
+  }
+  else
+  {
+    measurement[0] = m_acc.data.ax;
+    measurement[1] = m_acc.data.ay;
+    measurement[2] = m_acc.data.az;
   }
 
   measurement[3]=m_rate.data.avx;
@@ -229,11 +235,9 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   ///damped linear and angular spring
   uk_.head<3>()=Kpt_*xk_.segment<3>(stateObservation::kine::pos)
-              +Kdt_*xk_.segment<3>(stateObservation::kine::linVel);
+                +Kdt_*xk_.segment<3>(stateObservation::kine::linVel);
   uk_.tail<3>()=Kpo_*xk_.segment<3>(stateObservation::kine::ori)
-              +Kdo_*xk_.segment<3>(stateObservation::kine::angVel);
-
-
+                +Kdo_*xk_.segment<3>(stateObservation::kine::angVel);
 
   filter_.setInput(uk_,time);
 
@@ -278,11 +282,12 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   m_rpy.data.p = output[1];
   m_rpy.data.y = output[2];
   m_rpyOut.write();
-  if (m_debugLevel > 0){
+  if (m_debugLevel > 0)
+  {
     printf("acc:%6.3f %6.3f %6.3f, rate:%6.3f %6.3f %6.3f, rpy:%6.3f %6.3f %6.3f \n",
-	   measurement[0], measurement[1], measurement[2],
-	   measurement[3], measurement[4], measurement[5],
-	   m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
+           measurement[0], measurement[1], measurement[2],
+           measurement[3], measurement[4], measurement[5],
+           m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
   }
 
   sensorLog.pushBack(measurement);
@@ -309,7 +314,7 @@ RTC::ReturnCode_t AttitudeEstimator::onError(RTC::UniqueId ec_id)
 }
 */
 
-/*
+/*Ķ
 RTC::ReturnCode_t AttitudeEstimator::onReset(RTC::UniqueId ec_id)
 {
   return RTC::RTC_OK;
