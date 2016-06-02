@@ -257,17 +257,17 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   stateObservation::Vector3 orientation(xk_.segment<3>(stateObservation::kine::ori));
 
 
-  stateObservation::AngleAxis anax(
-                stateObservation::kine::rotationVectorToAngleAxis(orientation));
+  stateObservation::Matrix3 mat(
+    stateObservation::kine::rotationVectorToRotationMatrix(orientation));
 
-  stateObservation::Vector3 euler(anax.toRotationMatrix().eulerAngles(2,1,0));
+  stateObservation::Vector3 euler(
+    stateObservation::kine::rotationMatrixToRollPitchYaw(mat));
 
-  std::cout<< anax.toRotationMatrix() << std::endl<< std::endl;
   std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
 
   stateObservation::Vector3 offset(m_offset[0],m_offset[1],m_offset[2]);
 
-  stateObservation::Vector3 output(orientation+offset);
+  stateObservation::Vector3 output(euler+offset);
 
 
 
