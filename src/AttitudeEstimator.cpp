@@ -64,7 +64,7 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
     uk_(inputsize),
     xk_(statesize)
 {
-  q_(9,9)=q_(10,10)=q_(11,11)=1e-6;
+  q_(9,9)=q_(10,10)=q_(11,11)=3e-6;
 
   r_(3,3)=r_(4,4)=r_(5,5)=1e-10;
 
