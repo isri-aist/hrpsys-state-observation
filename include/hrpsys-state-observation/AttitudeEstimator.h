@@ -92,10 +92,13 @@ class AttitudeEstimator
  protected:
   // Configuration variable declaration
   // <rtc-template block="config_declare">
-  bool m_compensateMode, m_UseGsensFilter;
+  bool m_compensateMode;
+  double m_acceleroCovariance;
+  double m_gyroCovariance;
+  double m_orientationAccCov;
+  double m_stateCov;
   std::vector<double> m_offset;
-  double m_Q, m_Qbw;
-  double m_R;
+  bool m_debugLevel;
 
   // </rtc-template>
 
@@ -132,11 +135,9 @@ class AttitudeEstimator
 
   // </rtc-template>
 
- private:
-  int dummy;
-  double m_Tgsens, m_dt;
-  int m_filter_order;
-  bool m_debugLevel;
+
+
+
 
   ///Sizes of the states for the state, the measurement, and the input vector
   const unsigned stateSize_=18;

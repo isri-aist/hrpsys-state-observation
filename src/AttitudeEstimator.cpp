@@ -17,6 +17,13 @@
 const int statesize=18;
 const int inputsize=6;
 
+const double acc_cov_const=1e-4;
+const double gyr_cov_const=1e-10;
+const double ori_acc_const=3e-6;
+const double state_cov_const=1e-12;
+
+namespace so=stateObservation;
+
 
 
 // Module specification
@@ -36,11 +43,10 @@ static const char* AttitudeEstimator_spec[] =
   // Configuration variables
   "conf.default.compensateMode", "1",
   "conf.default.offset", "0,0,0",
-  "conf.default.Q", "0.01",
-  "conf.default.Qbw", "0.001",
-  "conf.default.R", "0.1",
-  "conf.default.Tgsens", "0.05",
-  "conf.default.filter_order", "0",
+  "conf.default.acc_cov", so::tools::toString(acc_cov_const).c_str(),
+  "conf.default.gyr_cov", so::tools::toString(gyr_cov_const).c_str(),
+  "conf.default.ori_acc_cov", so::tools::toString(ori_acc_const).c_str(),
+  "conf.default.state_cov", so::tools::toString(state_cov_const).c_str(),
   "conf.default.debugLevel", "0",
   ""
 };
@@ -48,7 +54,6 @@ static const char* AttitudeEstimator_spec[] =
 
 AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
   : RTC::DataFlowComponentBase(manager),
-    m_UseGsensFilter(false),
     // <rtc-template block="initializer">
     m_accIn("acc", m_acc),
     m_accRefIn("accRef", m_accRef),
@@ -56,17 +61,16 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
     m_rpyOut("rpy", m_rpy),
 
     // </rtc-template>
-    dummy(0),
     filter_(stateSize_, measurementSize_, inputSize_, false),
     dt_(0.005),
-    q_(stateObservation::Matrix::Identity(stateSize_,stateSize_)*1e-12),
-    r_(stateObservation::Matrix::Identity(measurementSize_,measurementSize_)*1e-4),
+    q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
+    r_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
     uk_(inputsize),
     xk_(statesize)
 {
-  q_(9,9)=q_(10,10)=q_(11,11)=3e-6;
+  q_(9,9)=q_(10,10)=q_(11,11)=ori_acc_const;
 
-  r_(3,3)=r_(4,4)=r_(5,5)=1e-10;
+  r_(3,3)=r_(4,4)=r_(5,5)=gyr_cov_const;
 
   ///initialization of the extended Kalman filter
   imuFunctor_.setSamplingPeriod(dt_);
@@ -123,17 +127,16 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
   // Bind variables and configuration variable
   bindParameter("compensateMode", m_compensateMode, "1");
   bindParameter("offset", m_offset, "0,0,0");
-  bindParameter("Q", m_Q, "0.01");
-  bindParameter("Qbw", m_Qbw, "0.001");
-  bindParameter("R", m_R, "0.1");
-  bindParameter("Tgsens", m_Tgsens, "0.05");
-  bindParameter("filter_order", m_filter_order, "0");
+  bindParameter("acc_cov",m_acceleroCovariance, "");
+  bindParameter("gyr_cov", m_gyroCovariance, "0.01");
+  bindParameter("ori_acc_cov", m_orientationAccCov, "0.01");
+  bindParameter("state_cov", m_stateCov, "0.01");
   bindParameter("debugLevel", m_debugLevel, "0");
 
   // </rtc-template>
 
   RTC::Properties& prop = getProperties();
-  coil::stringTo(m_dt, prop["dt"].c_str());
+  coil::stringTo(dt_, prop["dt"].c_str());
 
 
 
@@ -149,12 +152,15 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
 
 RTC::ReturnCode_t AttitudeEstimator::onFinalize()
 {
-  sensorLog.writeInFile("/home/benallegue/tmp/sensor.log");
-  orientationLog.writeInFile("/home/benallegue/tmp/ori.log");
-  eulerLog.writeInFile("/home/benallegue/tmp/euler.log");
-  offsetLog.writeInFile("/home/benallegue/tmp/offset.log");
-  myOutLog.writeInFile("/home/benallegue/tmp/myout.log");
-  return RTC::RTC_OK;
+  if (m_debugLevel>0)
+  {
+    sensorLog.writeInFile("/home/benallegue/tmp/sensor.log");
+    orientationLog.writeInFile("/home/benallegue/tmp/ori.log");
+    eulerLog.writeInFile("/home/benallegue/tmp/euler.log");
+    offsetLog.writeInFile("/home/benallegue/tmp/offset.log");
+    myOutLog.writeInFile("/home/benallegue/tmp/myout.log");
+    return RTC::RTC_OK;
+  }
 }
 
 
@@ -176,9 +182,9 @@ RTC::ReturnCode_t AttitudeEstimator::onActivated(RTC::UniqueId ec_id)
 {
   std::cout << "AttitudeEstimator::onActivated(" << ec_id << ")" << std::endl;
 
-  std::cout << "AttitudeEstimator: Q = " << m_Q << ", Q_bw = " << m_Qbw
-            << ", R = " << m_R << ", dt = " << m_dt << ", filter order = "
-            << m_filter_order << ", Tgsens = " << m_Tgsens << std::endl;
+//  std::cout << "AttitudeEstimator: Q = " << m_Q << ", Q_bw = " << m_Qbw
+//            << ", R = " << m_R << ", dt = " << m_dt << ", filter order = "
+//            << m_filter_order << ", Tgsens = " << m_Tgsens << std::endl;
 
   return RTC::RTC_OK;
 }
@@ -213,7 +219,7 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   }
 
   // processing
-  stateObservation::Vector6 measurement;
+  so::Vector6 measurement;
   if (m_compensateMode)
   {
     measurement[0] = m_acc.data.ax - m_accRef.data.ax;
@@ -234,10 +240,10 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   int time=filter_.getCurrentTime();
 
   ///damped linear and angular spring
-  uk_.head<3>()=Kpt_*xk_.segment<3>(stateObservation::kine::pos)
-                +Kdt_*xk_.segment<3>(stateObservation::kine::linVel);
-  uk_.tail<3>()=Kpo_*xk_.segment<3>(stateObservation::kine::ori)
-                +Kdo_*xk_.segment<3>(stateObservation::kine::angVel);
+  uk_.head<3>()=Kpt_*xk_.segment<3>(so::kine::pos)
+                +Kdt_*xk_.segment<3>(so::kine::linVel);
+  uk_.tail<3>()=Kpo_*xk_.segment<3>(so::kine::ori)
+                +Kdo_*xk_.segment<3>(so::kine::angVel);
 
   filter_.setInput(uk_,time);
 
@@ -245,11 +251,11 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
 
   ///set the derivation step for the finite difference method
-  stateObservation::Vector dx=filter_.stateVectorConstant(1)*1e-8;
+  so::Vector dx=filter_.stateVectorConstant(1)*1e-8;
 
 
-  stateObservation::Matrix a=filter_.getAMatrixFD(dx);
-  stateObservation::Matrix c= filter_.getCMatrixFD(dx);
+  so::Matrix a=filter_.getAMatrixFD(dx);
+  so::Matrix c= filter_.getCMatrixFD(dx);
 
   filter_.setA(a);
   filter_.setC(c);
@@ -258,23 +264,18 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   ///get the estimation and give it to the array
   xk_=filter_.getEstimatedState(time+1);
 
-  stateObservation::Vector3 orientation(xk_.segment<3>(stateObservation::kine::ori));
+  so::Vector3 orientation(xk_.segment<3>(so::kine::ori));
 
 
-  stateObservation::Matrix3 mat(
-    stateObservation::kine::rotationVectorToRotationMatrix(orientation));
+  so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation));
 
-  stateObservation::Vector3 euler(
-    stateObservation::kine::rotationMatrixToRollPitchYaw(mat));
+  so::Vector3 euler(so::kine::rotationMatrixToRollPitchYaw(mat));
 
   std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
 
-  stateObservation::Vector3 offset(m_offset[0],m_offset[1],m_offset[2]);
+  so::Vector3 offset(m_offset[0],m_offset[1],m_offset[2]);
 
-  stateObservation::Vector3 output(euler+offset);
-
-
-
+  so::Vector3 output(euler+offset);
 
   // output to OutPorts
   m_rpy.tm = tm;
