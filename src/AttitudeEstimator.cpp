@@ -152,15 +152,7 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
 
 RTC::ReturnCode_t AttitudeEstimator::onFinalize()
 {
-  if (m_debugLevel>0)
-  {
-    sensorLog.writeInFile("/home/benallegue/tmp/sensor.log");
-    orientationLog.writeInFile("/home/benallegue/tmp/ori.log");
-    eulerLog.writeInFile("/home/benallegue/tmp/euler.log");
-    offsetLog.writeInFile("/home/benallegue/tmp/offset.log");
-    myOutLog.writeInFile("/home/benallegue/tmp/myout.log");
-    return RTC::RTC_OK;
-  }
+
 }
 
 
@@ -271,7 +263,10 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   so::Vector3 euler(so::kine::rotationMatrixToRollPitchYaw(mat));
 
-  std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
+  if (m_debugLevel>0)
+  {
+    std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
+  }
 
   so::Vector3 offset(m_offset[0],m_offset[1],m_offset[2]);
 
