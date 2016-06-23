@@ -69,7 +69,12 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
     q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
     r_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
     uk_(inputsize),
-    xk_(statesize)
+    xk_(statesize),
+    m_compensateMode(true),
+    m_acceleroCovariance(acc_cov_const),
+    m_gyroCovariance(gyr_cov_const),
+    m_orientationAccCov(ori_acc_const),
+    m_stateCov(state_cov_const)
 {
   q_(9,9)=q_(10,10)=q_(11,11)=ori_acc_const;
 
