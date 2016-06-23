@@ -13,6 +13,7 @@
 #include <hrpsys-state-observation/AttitudeEstimator.h>
 #include <hrpsys-state-observation/VectorConvert.h>
 
+namespace so=stateObservation;
 
 const int statesize=18;
 const int inputsize=6;
@@ -22,8 +23,10 @@ const double gyr_cov_const=1e-10;
 const double ori_acc_const=3e-6;
 const double state_cov_const=1e-12;
 
-namespace so=stateObservation;
-
+static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
+static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
+static const std::string ori_acc_char  =so::tools::toString(ori_acc_const);
+static const std::string state_cov_char=so::tools::toString(state_cov_const);
 
 
 // Module specification
@@ -43,10 +46,10 @@ static const char* AttitudeEstimator_spec[] =
   // Configuration variables
   "conf.default.compensateMode", "1",
   "conf.default.offset", "0,0,0",
-  "conf.default.acc_cov", so::tools::toString(acc_cov_const).c_str(),
-  "conf.default.gyr_cov", so::tools::toString(gyr_cov_const).c_str(),
-  "conf.default.ori_acc_cov", so::tools::toString(ori_acc_const).c_str(),
-  "conf.default.state_cov", so::tools::toString(state_cov_const).c_str(),
+  "conf.default.acc_cov", acc_cov_char.c_str(),
+  "conf.default.gyr_cov", gyr_cov_char.c_str(),
+  "conf.default.ori_acc_cov", ori_acc_char.c_str(),
+  "conf.default.state_cov", state_cov_char.c_str(),
   "conf.default.debugLevel", "0",
   ""
 };
