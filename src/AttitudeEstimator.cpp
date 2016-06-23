@@ -199,6 +199,15 @@ RTC::ReturnCode_t AttitudeEstimator::onDeactivated(RTC::UniqueId ec_id)
 
 RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 {
+
+  q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
+  r_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
+  q_(9,9)=q_(10,10)=q_(11,11)=m_orientationAccCov;
+  r_(3,3)=r_(4,4)=r_(5,5)=m_gyroCovariance;
+
+  filter_.setQ(q_);
+  filter_.setR(r_);
+
   coil::TimeValue coiltm(coil::gettimeofday());
   Time tm;
   tm.sec  = coiltm.sec();
