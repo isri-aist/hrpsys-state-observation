@@ -15,6 +15,10 @@
 
 namespace so=stateObservation;
 
+namespace fest=so::flexibilityEstimation;
+typedef fest::IMUElasticLocalFrameDynamicalSystem::input input;
+
+
 const int statesize=18;
 const int inputsize=6;
 
@@ -22,6 +26,8 @@ const double acc_cov_const=1e-4;
 const double gyr_cov_const=1e-10;
 const double ori_acc_const=3e-6;
 const double state_cov_const=1e-12;
+
+const double mass=80.;
 
 static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
 static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
@@ -55,16 +61,18 @@ static const char* KineticsObserver_spec[] =
 };
 // </rtc-template>
 
+//ctor
 KineticsObserver::KineticsObserver(RTC::Manager* manager)
   : RTC::DataFlowComponentBase(manager),
     // <rtc-template block="initializer">
     m_accIn("acc", m_acc),
     m_accRefIn("accRef", m_accRef),
     m_rateIn("rate", m_rate),
+    m_rfforceIn("lfforce",m_rfforce),
+    m_lfforceIn("rfforce",m_lfforce),
     m_rpyOut("rpy", m_rpy),
 
     // </rtc-template>
-    filter_(stateSize_, measurementSize_, inputSize_, false),
     dt_(0.005),
     q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
     r_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
@@ -74,36 +82,18 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
     m_acceleroCovariance(acc_cov_const),
     m_gyroCovariance(gyr_cov_const),
     m_orientationAccCov(ori_acc_const),
-    m_stateCov(state_cov_const)
+    m_stateCov(state_cov_const),
+    contactNbr_(0)
 {
-  q_(9,9)=q_(10,10)=q_(11,11)=ori_acc_const;
-
-  r_(3,3)=r_(4,4)=r_(5,5)=gyr_cov_const;
 
   ///initialization of the extended Kalman filter
-  imuFunctor_.setSamplingPeriod(dt_);
-  filter_.setFunctor(& imuFunctor_);
+  estimator_.setSamplingPeriod(dt_);
 
-  filter_.setQ(q_);
-  filter_.setR(r_);
   xk_.setZero();
   uk_.setZero();
-  filter_.setState(xk_,0);
-  filter_.setStateCovariance(q_);
-
-  Kpt_<<-10,0,0,
-       0,-10,0,
-       0,0,-10;
-  Kdt_<<-1,0,0,
-       0,-1,0,
-       0,0,-1;
-  Kpo_<<-0.01,0,0,
-       0,-0.01,0,
-       0,0,-10;
-  Kdo_<<-0.01,0,0,
-       0,-0.01,0,
-       0,0,-10;
-
+  estimator_.setFlexibilityGuess(xk_);
+  estimator_.setFlexibilityCovariance(q_);
+  estimator_.setMass(mass);
 }
 
 KineticsObserver::~KineticsObserver()
@@ -119,6 +109,8 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
   addInPort("acc", m_accIn);
   addInPort("accRef", m_accRefIn);
   addInPort("rate", m_rateIn);
+  addInPort("lfforce", m_lfforceIn);
+  addInPort("rfforce", m_rfforceIn);
 
   // Set OutPort buffer
   addOutPort("rpy", m_rpyOut);
@@ -145,8 +137,6 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
 
   RTC::Properties& prop = getProperties();
   coil::stringTo(dt_, prop["dt"].c_str());
-
-
 
   m_acc.data.ax = m_acc.data.ay = m_acc.data.az = 0.0;
   m_rate.data.avx = m_rate.data.avy = m_rate.data.avz = 0.0;
@@ -204,8 +194,8 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   q_(9,9)=q_(10,10)=q_(11,11)=m_orientationAccCov;
   r_(3,3)=r_(4,4)=r_(5,5)=m_gyroCovariance;
 
-  filter_.setQ(q_);
-  filter_.setR(r_);
+  estimator_.setProcessNoiseCovariance(q_);
+  estimator_.setMeasurementNoiseCovariance(r_);
 
   coil::TimeValue coiltm(coil::gettimeofday());
   Time tm;
@@ -226,60 +216,107 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     m_accRef.data.ax = m_accRef.data.ay = m_accRef.data.az = 0.0;
   }
 
-  // processing
+  bool withForce=false;
+  contactNbr_=2;
+
+  if (m_lfforceIn.isNew())
+  {
+    m_lfforceIn.read();
+
+    if (m_rfforceIn.isNew())
+    {
+      m_rfforceIn.read();
+      withForce=true;
+      contactNbr_=0;
+    }
+  }
+
+
+
   so::Vector6 measurement;
-  if (m_compensateMode)
-  {
-    measurement[0] = m_acc.data.ax - m_accRef.data.ax;
-    measurement[1] = m_acc.data.ay - m_accRef.data.ay;
-    measurement[2] = m_acc.data.az - m_accRef.data.az;
-  }
+
+  if (withForce)
+    measurement.resize(18);
   else
+    measurement.resize(6);
+
+
+  measurement.head<6>() << m_acc.data.ax,   ///------------
+                   m_acc.data.ay,   /// accelerometer
+                   m_acc.data.az,   ///-------------
+                   m_rate.data.avx, ///-------------
+                   m_rate.data.avy, /// gyrometer
+                   m_rate.data.avz; ///------------
+  int measurementIndex=6;
+
+  if (withForce)
   {
-    measurement[0] = m_acc.data.ax;
-    measurement[1] = m_acc.data.ay;
-    measurement[2] = m_acc.data.az;
+
+    if (m_lfforce.data[2]>mass*0.05)
+    {
+      ++contactNbr_;
+      measurement.segment<6>(measurementIndex)
+                       << m_lfforce.data[0],
+                          m_lfforce.data[1],
+                          m_lfforce.data[2],
+                          m_lfforce.data[3],
+                          m_lfforce.data[4],
+                          m_lfforce.data[5];
+      measurementIndex+=6;
+
+    }
+    if (m_rfforce.data[2]>mass*0.05)
+    {
+      ++contactNbr_;
+      measurement.segment<6>(measurementIndex)
+                       << m_rfforce.data[0],
+                          m_rfforce.data[1],
+                          m_rfforce.data[2],
+                          m_rfforce.data[3],
+                          m_rfforce.data[4],
+                          m_rfforce.data[5];
+      measurementIndex+=6;
+    }
   }
 
-  measurement[3]=m_rate.data.avx;
-  measurement[5]=m_rate.data.avz;
-  measurement[4]=m_rate.data.avy;
 
-  int time=filter_.getCurrentTime();
-
-  ///damped linear and angular spring
-  uk_.head<3>()=Kpt_*xk_.segment<3>(so::kine::pos)
-                +Kdt_*xk_.segment<3>(so::kine::linVel);
-  uk_.tail<3>()=Kpo_*xk_.segment<3>(so::kine::ori)
-                +Kdo_*xk_.segment<3>(so::kine::angVel);
-
-  filter_.setInput(uk_,time);
-
-  filter_.setMeasurement(measurement,time+1);
+  estimator_.setContactsNumber(contactNbr_);
 
 
-  ///set the derivation step for the finite difference method
-  so::Vector dx=filter_.stateVectorConstant(1)*1e-8;
+  estimator_.setMeasurement(measurement);
+
+  uk_.resize(estimator_.getInputSize());
+
+  uk_.segment<3> (input::posCom)<<0,0,0.9;
+  uk_.segment<3> (input::velCom)<<0,0,0;
+  uk_.segment<3> (input::accCom)<<0,0,0;
+  uk_.segment<6> (input::inertia)<<217.6,212.,20.,0,0,0;
+  uk_.segment<3> (input::angMoment)<<0,0,0;
+  uk_.segment<6> (input::dotInertia)<<0,0,0,0,0,0;
+  uk_.segment<3> (input::dotAngMoment)<<0,0,0;
+  uk_.segment<3> (input::posIMU)<<0,0,1.2;
+  uk_.segment<3> (input::oriIMU)<<0,0,0;
+  uk_.segment<3> (input::linVelIMU)<<0,0,0;
+  uk_.segment<3> (input::angVelIMU)<<0,0,0;
+  uk_.segment<3> (input::linAccIMU)<<0,0,0;
+  uk_.segment<12>(input::contacts)<<0,+0.19,0,0,0,0,
+                                    0,-0.19,0,0,0,0;
 
 
-  so::Matrix a=filter_.getAMatrixFD(dx);
-  so::Matrix c= filter_.getCMatrixFD(dx);
 
-  filter_.setA(a);
-  filter_.setC(c);
+
+
+  estimator_.setInput(uk_);
 
 
   ///get the estimation and give it to the array
-  xk_=filter_.getEstimatedState(time+1);
+  xk_=estimator_.getFlexibilityVector();
 
   so::Vector3 orientation(xk_.segment<3>(so::kine::ori));
-
 
   so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation));
 
   so::Vector3 euler(so::kine::rotationMatrixToRollPitchYaw(mat));
-
-
 
   so::Vector3 offset(m_offset[0],m_offset[1],m_offset[2]);
 
@@ -299,13 +336,15 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
            m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
 
 
+
+  }
+
+
     sensorLog.pushBack(measurement);
     orientationLog.pushBack(orientation);
     offsetLog.pushBack(offset);
     eulerLog.pushBack(euler);
     myOutLog.pushBack(output);
-
-  }
 
   return RTC::RTC_OK;
 }

@@ -18,9 +18,7 @@
 #include <rtm/idl/BasicDataTypeSkel.h>
 #include <rtm/idl/ExtendedDataTypesSkel.h>
 
-#include <state-observation/dynamical-system/imu-dynamical-system.hpp>
-#include <state-observation/observer/extended-kalman-filter.hpp>
-
+#include <state-observation/flexibility-estimation/model-base-ekf-flex-estimator-imu.hpp>
 // Service implementation headers
 // <rtc-template block="service_impl_h">
 
@@ -104,6 +102,11 @@ class KineticsObserver
 
   // DataInPort declaration
   // <rtc-template block="inport_declare">
+  TimedDoubleSeq m_rfforce;
+  InPort<TimedDoubleSeq> m_rfforceIn;
+  TimedDoubleSeq m_lfforce;
+  InPort<TimedDoubleSeq> m_lfforceIn;
+
   TimedAcceleration3D m_acc;
   InPort<TimedAcceleration3D> m_accIn;
   TimedAcceleration3D m_accRef;
@@ -136,9 +139,6 @@ class KineticsObserver
   // </rtc-template>
 
 
-
-
-
   ///Sizes of the states for the state, the measurement, and the input vector
   const unsigned stateSize_=18;
   const unsigned measurementSize_=6;
@@ -146,11 +146,9 @@ class KineticsObserver
 
   double dt_;
 
-  ///initialization of the extended Kalman filter
-  stateObservation::ExtendedKalmanFilter filter_;
-
   ///initalization of the functor
-  stateObservation::IMUDynamicalSystem imuFunctor_;
+  stateObservation::flexibilityEstimation::
+          ModelBaseEKFFlexEstimatorIMU estimator_;
 
   stateObservation::Vector xk_;
   stateObservation::Vector uk_;
@@ -164,10 +162,8 @@ class KineticsObserver
   stateObservation::IndexedMatrixArray offsetLog;
   stateObservation::IndexedMatrixArray myOutLog;
 
-  stateObservation::Matrix3 Kpt_, Kdt_;
-  stateObservation::Matrix3 Kpo_, Kdo_;
 
-
+  int contactNbr_;
 
 };
 
