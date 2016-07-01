@@ -243,8 +243,8 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   }
 
   measurement[3]=m_rate.data.avx;
-  measurement[5]=m_rate.data.avz;
   measurement[4]=m_rate.data.avy;
+  measurement[5]=m_rate.data.avz;
 
   int time=filter_.getCurrentTime();
 
