@@ -340,11 +340,11 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   }
 
 
-    sensorLog.pushBack(measurement);
-    orientationLog.pushBack(orientation);
-    offsetLog.pushBack(offset);
-    eulerLog.pushBack(euler);
-    myOutLog.pushBack(output);
+  sensorLog.pushBack(measurement);
+  stateLog.pushBack(xk_);
+  so::Vector inputbis(estimator_.getInputSize()+1);
+  inputbis<<uk_, contactNbr_;
+  inputLog.pushBack(inputbis);
 
   return RTC::RTC_OK;
 }
