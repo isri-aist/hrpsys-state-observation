@@ -140,7 +140,7 @@ class KineticsObserver
 
 
   ///Sizes of the states for the state, the measurement, and the input vector
-  const unsigned stateSize_=18;
+  const unsigned stateSize_=23;
   const unsigned measurementSize_=6;
   const unsigned inputSize_=6;
 

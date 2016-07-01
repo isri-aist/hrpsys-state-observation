@@ -19,7 +19,6 @@ namespace fest=so::flexibilityEstimation;
 typedef fest::IMUElasticLocalFrameDynamicalSystem::input input;
 
 
-const int statesize=18;
 const int inputsize=6;
 
 const double acc_cov_const=1e-4;
@@ -77,7 +76,7 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
     q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
     r_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
     uk_(inputsize),
-    xk_(statesize),
+    xk_(stateSize_),
     m_compensateMode(true),
     m_acceleroCovariance(acc_cov_const),
     m_gyroCovariance(gyr_cov_const),
