@@ -16,7 +16,7 @@
 namespace so=stateObservation;
 
 namespace fest=so::flexibilityEstimation;
-typedef fest::IMUElasticLocalFrameDynamicalSystem::input input;
+typedef fest::IMUElasticLocalFrameDynamicalSystem::input Input;
 
 
 const int inputsize=6;
@@ -217,6 +217,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   bool withForce=false;
   contactNbr_=2;
+  estimator_.setWithForcesMeasurements(withForce);
 
   if (m_lfforceIn.isNew())
   {
@@ -286,19 +287,19 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   uk_.resize(estimator_.getInputSize());
 
-  uk_.segment<3> (input::posCom)<<0,0,0.9;
-  uk_.segment<3> (input::velCom)<<0,0,0;
-  uk_.segment<3> (input::accCom)<<0,0,0;
-  uk_.segment<6> (input::inertia)<<217.6,212.,20.,0,0,0;
-  uk_.segment<3> (input::angMoment)<<0,0,0;
-  uk_.segment<6> (input::dotInertia)<<0,0,0,0,0,0;
-  uk_.segment<3> (input::dotAngMoment)<<0,0,0;
-  uk_.segment<3> (input::posIMU)<<0,0,1.2;
-  uk_.segment<3> (input::oriIMU)<<0,0,0;
-  uk_.segment<3> (input::linVelIMU)<<0,0,0;
-  uk_.segment<3> (input::angVelIMU)<<0,0,0;
-  uk_.segment<3> (input::linAccIMU)<<0,0,0;
-  uk_.segment<12>(input::contacts)<<0,+0.19,0,0,0,0,
+  uk_.segment<3> (Input::posCom)<<0,0,0.9;
+  uk_.segment<3> (Input::velCom)<<0,0,0;
+  uk_.segment<3> (Input::accCom)<<0,0,0;
+  uk_.segment<6> (Input::inertia)<<217.6,212.,20.,0,0,0;
+  uk_.segment<3> (Input::angMoment)<<0,0,0;
+  uk_.segment<6> (Input::dotInertia)<<0,0,0,0,0,0;
+  uk_.segment<3> (Input::dotAngMoment)<<0,0,0;
+  uk_.segment<3> (Input::posIMU)<<0,0,1.2;
+  uk_.segment<3> (Input::oriIMU)<<0,0,0;
+  uk_.segment<3> (Input::linVelIMU)<<0,0,0;
+  uk_.segment<3> (Input::angVelIMU)<<0,0,0;
+  uk_.segment<3> (Input::linAccIMU)<<0,0,0;
+  uk_.segment<12>(Input::contacts)<<0,+0.19,0,0,0,0,
                                     0,-0.19,0,0,0,0;
 
 
