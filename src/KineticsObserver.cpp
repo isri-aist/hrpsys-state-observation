@@ -307,7 +307,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
 
 
-  estimator_.setInput(uk_);
+  estimator_.setMeasurementInput(uk_);
 
 
   ///get the estimation and give it to the array
