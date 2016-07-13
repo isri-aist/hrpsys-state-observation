@@ -149,6 +149,7 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
 
 RTC::ReturnCode_t KineticsObserver::onFinalize()
 {
+  return RTC::RTC_OK;
 }
 
 
