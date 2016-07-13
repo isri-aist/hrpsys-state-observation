@@ -232,7 +232,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     }
   }
 
-
+  estimator_.setContactModel(contactModel::elasticContact);
 
   so::Vector6 measurement;
 
