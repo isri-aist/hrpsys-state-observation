@@ -160,9 +160,12 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
 
 RTC::ReturnCode_t AttitudeEstimator::onFinalize()
 {
-  sensorLog.writeInFile("/home/benallegue/tmp/ae-sensor.log");
-  stateLog.writeInFile("/home/benallegue/tmp/ae-state.log");
-  inputLog.writeInFile("/home/benallegue/tmp/ae-input.log");
+  if (m_debugLevel>0)
+  {
+    sensorLog.writeInFile("/home/benallegue/tmp/ae-sensor.log");
+    stateLog.writeInFile("/home/benallegue/tmp/ae-state.log");
+    inputLog.writeInFile("/home/benallegue/tmp/ae-input.log");
+  }
   return RTC::RTC_OK;
 }
 
@@ -205,6 +208,7 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   if (m_debugLevel>0)
   {
+    std::cout << "debug level " << m_debugLevel << std::endl;
     std::cout << "AttitudeEstimator::onExecute(" << ec_id << ")" << std::endl;
   }
 
@@ -304,11 +308,11 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
            measurement[0], measurement[1], measurement[2],
            measurement[3], measurement[4], measurement[5],
            m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
-  }
 
-  sensorLog.pushBack(measurement);
-  stateLog.pushBack(xk_);
-  inputLog.pushBack(uk_);
+    sensorLog.pushBack(measurement);
+    stateLog.pushBack(xk_);
+    inputLog.pushBack(uk_);
+  }
 
   return RTC::RTC_OK;
 }
