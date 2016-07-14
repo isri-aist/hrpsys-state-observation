@@ -208,7 +208,6 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   if (m_debugLevel>0)
   {
-    std::cout << "debug level " << m_debugLevel << std::endl;
     std::cout << "AttitudeEstimator::onExecute(" << ec_id << ")" << std::endl;
   }
 
