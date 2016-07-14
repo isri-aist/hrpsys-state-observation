@@ -150,6 +150,12 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
 
 RTC::ReturnCode_t KineticsObserver::onFinalize()
 {
+  if (m_debugLevel>0)
+  {
+    sensorLog.writeInFile("/home/benallegue/tmp/ko-sensor.log");
+    stateLog.writeInFile("/home/benallegue/tmp/ko-state.log");
+    inputLog.writeInFile("/home/benallegue/tmp/ko-input.log");
+  }
   return RTC::RTC_OK;
 }
 
@@ -189,6 +195,10 @@ RTC::ReturnCode_t KineticsObserver::onDeactivated(RTC::UniqueId ec_id)
 
 RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 {
+  if (m_debugLevel > 0)
+  {
+    std::cout << "KineticsObserver::onExecute(" << ec_id << ")" << std::endl;
+  }
 
   q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
   r_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
@@ -203,7 +213,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   tm.sec  = coiltm.sec();
   tm.nsec = coiltm.usec() * 1000;
 
-  //std::cout << "AttitudeEstimator::onExecute(" << ec_id << ")" << std::endl;
+
   // input from InPorts
   if (m_accIn.isNew()) m_accIn.read();
   if (m_rateIn.isNew()) m_rateIn.read();
@@ -310,7 +320,6 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   estimator_.setMeasurementInput(uk_);
 
-
   ///get the estimation and give it to the array
   xk_=estimator_.getFlexibilityVector();
 
@@ -338,15 +347,12 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
            m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
 
 
-
+    sensorLog.pushBack(measurement);
+    stateLog.pushBack(xk_);
+    so::Vector inputbis(estimator_.getInputSize()+1);
+    inputbis<<uk_, contactNbr_;
+    inputLog.pushBack(inputbis);
   }
-
-
-  sensorLog.pushBack(measurement);
-  stateLog.pushBack(xk_);
-  so::Vector inputbis(estimator_.getInputSize()+1);
-  inputbis<<uk_, contactNbr_;
-  inputLog.pushBack(inputbis);
 
   return RTC::RTC_OK;
 }

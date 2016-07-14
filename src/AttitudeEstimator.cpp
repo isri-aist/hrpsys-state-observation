@@ -160,7 +160,10 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
 
 RTC::ReturnCode_t AttitudeEstimator::onFinalize()
 {
-
+  sensorLog.writeInFile("/home/benallegue/tmp/ae-sensor.log");
+  stateLog.writeInFile("/home/benallegue/tmp/ae-state.log");
+  inputLog.writeInFile("/home/benallegue/tmp/ae-input.log");
+  return RTC::RTC_OK;
 }
 
 
@@ -199,7 +202,6 @@ RTC::ReturnCode_t AttitudeEstimator::onDeactivated(RTC::UniqueId ec_id)
 
 RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 {
-
   q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
   r_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
   q_(9,9)=q_(10,10)=q_(11,11)=m_orientationAccCov;
@@ -213,7 +215,7 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   tm.sec  = coiltm.sec();
   tm.nsec = coiltm.usec() * 1000;
 
-  //std::cout << "AttitudeEstimator::onExecute(" << ec_id << ")" << std::endl;
+  std::cout << "AttitudeEstimator::onExecute(" << ec_id << ")" << std::endl;
   // input from InPorts
   if (m_accIn.isNew()) m_accIn.read();
   if (m_rateIn.isNew()) m_rateIn.read();
@@ -280,9 +282,9 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   so::Vector3 euler(so::kine::rotationMatrixToRollPitchYaw(mat));
 
-  if (m_debugLevel>0)
+  //if (m_debugLevel>0)
   {
-    std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
+  // std::cout<< orientation.transpose() << "    "<<euler.transpose() << std::endl;
   }
 
   so::Vector3 offset(m_offset[0],m_offset[1],m_offset[2]);
@@ -304,10 +306,8 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   }
 
   sensorLog.pushBack(measurement);
-  orientationLog.pushBack(orientation);
-  offsetLog.pushBack(offset);
-  eulerLog.pushBack(euler);
-  myOutLog.pushBack(output);
+  stateLog.pushBack(xk_);
+  inputLog.pushBack(uk_);
 
   return RTC::RTC_OK;
 }
