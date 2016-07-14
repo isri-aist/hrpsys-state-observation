@@ -17,6 +17,7 @@ namespace so=stateObservation;
 
 namespace fest=so::flexibilityEstimation;
 typedef fest::IMUElasticLocalFrameDynamicalSystem::input Input;
+typedef so::flexibilityEstimation::IMUElasticLocalFrameDynamicalSystem::contactModel contactModel;
 
 
 const int inputsize=6;
