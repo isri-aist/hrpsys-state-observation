@@ -88,6 +88,8 @@ class AttitudeEstimator
   // no corresponding operation exists in OpenRTm-aist-0.2.0
   // virtual RTC::ReturnCode_t onRateChanged(RTC::UniqueId ec_id);
 
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
 
  protected:
   // Configuration variable declaration
