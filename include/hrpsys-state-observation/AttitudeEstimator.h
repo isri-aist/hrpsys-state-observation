@@ -135,6 +135,8 @@ class AttitudeEstimator
 
   // </rtc-template>
 
+  bool log_;
+
 
 
 
@@ -158,9 +160,10 @@ class AttitudeEstimator
   stateObservation::Matrix q_;
   stateObservation::Matrix r_;
 
-  stateObservation::IndexedMatrixArray sensorLog;
-  stateObservation::IndexedMatrixArray inputLog;
-  stateObservation::IndexedMatrixArray stateLog;
+  stateObservation::IndexedMatrixArray sensorLog_;
+  stateObservation::IndexedMatrixArray inputLog_;
+  stateObservation::IndexedMatrixArray stateLog_;
+  stateObservation::IndexedMatrixArray outputLog_;
 
   stateObservation::Matrix3 Kpt_, Kdt_;
   stateObservation::Matrix3 Kpo_, Kdo_;

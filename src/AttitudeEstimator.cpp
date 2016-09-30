@@ -20,8 +20,8 @@ const int inputsize=6;
 
 const double acc_cov_const=1e-4;
 const double gyr_cov_const=1e-10;
-const double ori_acc_const=3e-6;
-const double state_cov_const=1e-12;
+const double ori_acc_const=1e0;
+const double state_cov_const=3e-13;
 
 static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
 static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
@@ -91,17 +91,17 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
   filter_.setState(xk_,0);
   filter_.setStateCovariance(q_);
 
-  Kpt_<<-10,0,0,
+  Kpt_<<-20,0,0,
+       0,-20,0,
+       0,0,-20;
+  Kdt_<<-10,0,0,
        0,-10,0,
        0,0,-10;
-  Kdt_<<-1,0,0,
-       0,-1,0,
-       0,0,-1;
-  Kpo_<<-0.01,0,0,
-       0,-0.01,0,
+  Kpo_<<-0.0,0,0,
+       0,-0.0,0,
        0,0,-10;
-  Kdo_<<-0.01,0,0,
-       0,-0.01,0,
+  Kdo_<<-0.0,0,0,
+       0,-0.0,0,
        0,0,-10;
 
 }
@@ -135,10 +135,10 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
   // Bind variables and configuration variable
   bindParameter("compensateMode", m_compensateMode, "1");
   bindParameter("offset", m_offset, "0,0,0");
-  bindParameter("acc_cov",m_acceleroCovariance, "");
-  bindParameter("gyr_cov", m_gyroCovariance, "0.01");
-  bindParameter("ori_acc_cov", m_orientationAccCov, "0.01");
-  bindParameter("state_cov", m_stateCov, "0.01");
+  bindParameter("acc_cov",m_acceleroCovariance, acc_cov_char.c_str());
+  bindParameter("gyr_cov", m_gyroCovariance, gyr_cov_char.c_str());
+  bindParameter("ori_acc_cov", m_orientationAccCov, ori_acc_char.c_str());
+  bindParameter("state_cov", m_stateCov, state_cov_char.c_str());
   bindParameter("debugLevel", m_debugLevel, "0");
 
   // </rtc-template>
@@ -160,11 +160,12 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
 
 RTC::ReturnCode_t AttitudeEstimator::onFinalize()
 {
-  if (m_debugLevel>0)
+  if (log_>0)
   {
-    sensorLog.writeInFile("/home/benallegue/tmp/ae-sensor.log");
-    stateLog.writeInFile("/home/benallegue/tmp/ae-state.log");
-    inputLog.writeInFile("/home/benallegue/tmp/ae-input.log");
+    sensorLog_.writeInFile("/home/benallegue/tmp/ae-sensor.log");
+    stateLog_.writeInFile("/home/benallegue/tmp/ae-state.log");
+    inputLog_.writeInFile("/home/benallegue/tmp/ae-input.log");
+    outputLog_.writeInFile("/home/benallegue/tmp/ae-output.log");
   }
   return RTC::RTC_OK;
 }
@@ -205,6 +206,10 @@ RTC::ReturnCode_t AttitudeEstimator::onDeactivated(RTC::UniqueId ec_id)
 
 RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 {
+  log_=1;
+
+  imuFunctor_.setSamplingPeriod(dt_);
+
 
   if (m_debugLevel>0)
   {
@@ -295,23 +300,30 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   so::Vector3 output(euler+offset);
 
-  // output to OutPorts
-  m_rpy.tm = tm;
-  m_rpy.data.r = output[0];
-  m_rpy.data.p = output[1];
-  m_rpy.data.y = output[2];
-  m_rpyOut.write();
+
   if (m_debugLevel > 0)
   {
     printf("acc:%6.3f %6.3f %6.3f, rate:%6.3f %6.3f %6.3f, rpy:%6.3f %6.3f %6.3f \n",
            measurement[0], measurement[1], measurement[2],
            measurement[3], measurement[4], measurement[5],
            m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
-
-    sensorLog.pushBack(measurement);
-    stateLog.pushBack(xk_);
-    inputLog.pushBack(uk_);
   }
+
+  if (log_)
+  {
+    outputLog_.pushBack(output);
+
+    sensorLog_.pushBack(measurement);
+    stateLog_.pushBack(xk_);
+    inputLog_.pushBack(uk_);
+  }
+
+  // output to OutPorts
+  m_rpy.tm = tm;
+  m_rpy.data.r = output[0];
+  m_rpy.data.p = output[1];
+  m_rpy.data.y = output[2];
+  m_rpyOut.write();
 
   return RTC::RTC_OK;
 }

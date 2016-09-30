@@ -93,7 +93,7 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
   uk_.setZero();
   estimator_.setFlexibilityGuess(xk_);
   estimator_.setFlexibilityCovariance(q_);
-  estimator_.setMass(mass);
+  estimator_.setRobotMass(mass);
 }
 
 KineticsObserver::~KineticsObserver()
