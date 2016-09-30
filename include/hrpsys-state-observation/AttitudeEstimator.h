@@ -36,17 +36,17 @@ using namespace RTC;
 class AttitudeEstimator
   : public RTC::DataFlowComponentBase
 {
- public:
+public:
   AttitudeEstimator(RTC::Manager* manager);
   virtual ~AttitudeEstimator();
 
   // The initialize action (on CREATED->ALIVE transition)
   // formaer rtc_init_entry()
- virtual RTC::ReturnCode_t onInitialize();
+  virtual RTC::ReturnCode_t onInitialize();
 
   // The finalize action (on ALIVE->END transition)
   // formaer rtc_exiting_entry()
- virtual RTC::ReturnCode_t onFinalize();
+  virtual RTC::ReturnCode_t onFinalize();
 
   // The startup action when ExecutionContext startup
   // former rtc_starting_entry()
@@ -91,7 +91,7 @@ class AttitudeEstimator
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 
- protected:
+protected:
   // Configuration variable declaration
   // <rtc-template block="config_declare">
   bool m_compensateMode;
