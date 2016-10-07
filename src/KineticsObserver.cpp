@@ -155,9 +155,9 @@ RTC::ReturnCode_t KineticsObserver::onFinalize()
 {
   if (m_debugLevel>0)
   {
-    sensorLog.writeInFile("/home/benallegue/tmp/ko-sensor.log");
-    stateLog.writeInFile("/home/benallegue/tmp/ko-state.log");
-    inputLog.writeInFile("/home/benallegue/tmp/ko-input.log");
+    sensorLog.writeInFile("/tmp/ko-sensor.log");
+    stateLog.writeInFile("/tmp/ko-state.log");
+    inputLog.writeInFile("/tmp/ko-input.log");
   }
   return RTC::RTC_OK;
 }
