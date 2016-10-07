@@ -162,10 +162,10 @@ RTC::ReturnCode_t AttitudeEstimator::onFinalize()
 {
   if (log_>0)
   {
-    sensorLog_.writeInFile("/home/benallegue/tmp/ae-sensor.log");
-    stateLog_.writeInFile("/home/benallegue/tmp/ae-state.log");
-    inputLog_.writeInFile("/home/benallegue/tmp/ae-input.log");
-    outputLog_.writeInFile("/home/benallegue/tmp/ae-output.log");
+    sensorLog_.writeInFile("/tmp/ae-sensor.log");
+    stateLog_.writeInFile("/tmp/ae-state.log");
+    inputLog_.writeInFile("/tmp/ae-input.log");
+    outputLog_.writeInFile("/tmp/ae-output.log");
   }
   return RTC::RTC_OK;
 }
