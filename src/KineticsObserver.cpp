@@ -139,6 +139,8 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
   RTC::Properties& prop = getProperties();
   coil::stringTo(dt_, prop["dt"].c_str());
 
+  estimator_.setSamplingPeriod(dt_);
+
   m_acc.data.ax = m_acc.data.ay = m_acc.data.az = 0.0;
   m_rate.data.avx = m_rate.data.avy = m_rate.data.avz = 0.0;
   m_accRef.data.ax = m_accRef.data.ay = m_accRef.data.az = 0.0;
