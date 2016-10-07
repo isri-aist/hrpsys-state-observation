@@ -158,6 +158,7 @@ class KineticsObserver
   stateObservation::IndexedMatrixArray sensorLog;
   stateObservation::IndexedMatrixArray stateLog;
   stateObservation::IndexedMatrixArray inputLog;
+  stateObservation::IndexedMatrixArray outputLog;
 
 
   int contactNbr_;

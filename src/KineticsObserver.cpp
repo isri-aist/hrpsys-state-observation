@@ -158,6 +158,7 @@ RTC::ReturnCode_t KineticsObserver::onFinalize()
     sensorLog.writeInFile("/tmp/ko-sensor.log");
     stateLog.writeInFile("/tmp/ko-state.log");
     inputLog.writeInFile("/tmp/ko-input.log");
+    outputLog.writeInFile("/tmp/ko-output.log");
   }
   return RTC::RTC_OK;
 }
@@ -366,6 +367,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
     sensorLog.pushBack(measurement);
     stateLog.pushBack(xk_);
+    outputLog.pushBack(output);
     so::Vector inputbis(estimator_.getInputSize()+1);
     inputbis<<uk_, contactNbr_;
     inputLog.pushBack(inputbis);
