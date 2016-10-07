@@ -16,6 +16,7 @@
 namespace so=stateObservation;
 
 namespace fest=so::flexibilityEstimation;
+typedef fest::IMUElasticLocalFrameDynamicalSystem::state state;
 typedef fest::IMUElasticLocalFrameDynamicalSystem::input Input;
 typedef so::flexibilityEstimation::IMUElasticLocalFrameDynamicalSystem::contactModel contactModel;
 
@@ -24,14 +25,14 @@ const int inputsize=6;
 
 const double acc_cov_const=1e-4;
 const double gyr_cov_const=1e-10;
-const double ori_acc_const=3e-6;
+const double state_fc_const=1e-0;
 const double state_cov_const=1e-12;
 
 const double mass=80.;
 
 static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
 static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
-static const std::string ori_acc_char  =so::tools::toString(ori_acc_const);
+static const std::string state_fc_char  =so::tools::toString(state_fc_const);
 static const std::string state_cov_char=so::tools::toString(state_cov_const);
 
 
@@ -54,7 +55,7 @@ static const char* KineticsObserver_spec[] =
   "conf.default.offset", "0,0,0",
   "conf.default.acc_cov", acc_cov_char.c_str(),
   "conf.default.gyr_cov", gyr_cov_char.c_str(),
-  "conf.default.ori_acc_cov", ori_acc_char.c_str(),
+  "conf.default.ori_acc_cov", state_fc_char.c_str(),
   "conf.default.state_cov", state_cov_char.c_str(),
   "conf.default.debugLevel", "0",
   ""
@@ -81,7 +82,7 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
     m_compensateMode(true),
     m_acceleroCovariance(acc_cov_const),
     m_gyroCovariance(gyr_cov_const),
-    m_orientationAccCov(ori_acc_const),
+    m_stateForceCov(state_fc_const),
     m_stateCov(state_cov_const),
     contactNbr_(0)
 {
@@ -129,7 +130,7 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
   bindParameter("offset", m_offset, "0,0,0");
   bindParameter("acc_cov",m_acceleroCovariance, "");
   bindParameter("gyr_cov", m_gyroCovariance, "0.01");
-  bindParameter("ori_acc_cov", m_orientationAccCov, "0.01");
+  bindParameter("ori_acc_cov", m_stateForceCov, "0.01");
   bindParameter("state_cov", m_stateCov, "0.01");
   bindParameter("debugLevel", m_debugLevel, "0");
 
@@ -200,10 +201,24 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     std::cout << "KineticsObserver::onExecute(" << ec_id << ")" << std::endl;
   }
 
-  q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
+
   r_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
-  q_(9,9)=q_(10,10)=q_(11,11)=m_orientationAccCov;
   r_(3,3)=r_(4,4)=r_(5,5)=m_gyroCovariance;
+  q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
+  q_(state::fc,state::fc)
+          =q_(state::fc+1,state::fc+1)
+          =q_(state::fc+2,state::fc+2)
+          =q_(state::fc+3,state::fc+3)
+          =q_(state::fc+4,state::fc+4)
+          =q_(state::fc+5,state::fc+5)
+          =q_(state::fc+6,state::fc+6)
+          =q_(state::fc+7,state::fc+7)
+          =q_(state::fc+8,state::fc+8)
+          =q_(state::fc+9,state::fc+9)
+          =q_(state::fc+10,state::fc+10)
+          =q_(state::fc+11,state::fc+11)
+          =m_stateForceCov;
+
 
   estimator_.setProcessNoiseCovariance(q_);
   estimator_.setMeasurementNoiseCovariance(r_);
@@ -311,8 +326,8 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   uk_.segment<3> (Input::linVelIMU)<<0,0,0;
   uk_.segment<3> (Input::angVelIMU)<<0,0,0;
   uk_.segment<3> (Input::linAccIMU)<<0,0,0;
-  uk_.segment<12>(Input::contacts)<<0,+0.19,0,0,0,0,
-                                    0,-0.19,0,0,0,0;
+  uk_.segment<24>(Input::contacts)<<0,+0.19,0,0,0,0,0,0,0,0,0,0,
+                                    0,-0.19,0,0,0,0,0,0,0,0,0,0;
 
 
 

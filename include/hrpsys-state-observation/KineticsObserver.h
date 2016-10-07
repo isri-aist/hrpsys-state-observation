@@ -93,7 +93,7 @@ class KineticsObserver
   bool m_compensateMode;
   double m_acceleroCovariance;
   double m_gyroCovariance;
-  double m_orientationAccCov;
+  double m_stateForceCov;
   double m_stateCov;
   std::vector<double> m_offset;
   bool m_debugLevel;
