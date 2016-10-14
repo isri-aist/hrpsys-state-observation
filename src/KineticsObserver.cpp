@@ -229,6 +229,8 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   estimator_.setProcessNoiseCovariance(q_);
   estimator_.setMeasurementNoiseCovariance(r_);
 
+  estimator_.setForceVariance(1e1);
+
   coil::TimeValue coiltm(coil::gettimeofday());
   Time tm;
   tm.sec  = coiltm.sec();
@@ -250,7 +252,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   bool withForce=false;
   contactNbr_=2;
-  estimator_.setWithForcesMeasurements(withForce);
+
 
   if (m_lfforceIn.isNew())
   {
@@ -260,13 +262,13 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     {
       m_rfforceIn.read();
       withForce=true;
-      contactNbr_=0;
     }
   }
 
+  estimator_.setWithForcesMeasurements(withForce);
   estimator_.setContactModel(contactModel::elasticContact);
 
-  so::Vector6 measurement;
+  so::Vector measurement;
 
   if (withForce)
     measurement.resize(18);
@@ -284,8 +286,8 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   if (withForce)
   {
-
-    if (m_lfforce.data[2]>mass*0.05)
+    contactNbr_=0;
+    if (m_lfforce.data[2]>mass*9.8*0.01)
     {
       ++contactNbr_;
       measurement.segment<6>(measurementIndex)
@@ -298,7 +300,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
       measurementIndex+=6;
 
     }
-    if (m_rfforce.data[2]>mass*0.05)
+    if (m_rfforce.data[2]>mass*9.8*0.01)
     {
       ++contactNbr_;
       measurement.segment<6>(measurementIndex)
@@ -309,11 +311,16 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
                           m_rfforce.data[4],
                           m_rfforce.data[5];
       measurementIndex+=6;
+      rightFootIn_=true;
     }
+    else
+      rightFootIn_=false;
   }
 
 
   estimator_.setContactsNumber(contactNbr_);
+  measurement.conservativeResize(estimator_.getMeasurementSize());
+
 
 
   estimator_.setMeasurement(measurement);
@@ -332,9 +339,16 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   uk_.segment<3> (Input::linVelIMU)<<0,0,0;
   uk_.segment<3> (Input::angVelIMU)<<0,0,0;
   uk_.segment<3> (Input::linAccIMU)<<0,0,0;
-  uk_.segment<24>(Input::contacts)<<0,+0.19,0,0,0,0,0,0,0,0,0,0,
-                                    0,-0.19,0,0,0,0,0,0,0,0,0,0;
 
+  if (contactNbr_>0)
+  {
+    if (rightFootIn_)
+      uk_.segment<12>(Input::contacts)<<0,+0.19,0,0,0,0,0,0,0,0,0,0;
+    else
+      uk_.segment<12>(Input::contacts)<<0,-0.19,0,0,0,0,0,0,0,0,0,0;
+    if (contactNbr_>1)
+      uk_.segment<12>(Input::contacts+12)<<0,-0.19,0,0,0,0,0,0,0,0,0,0;
+  }
 
 
 

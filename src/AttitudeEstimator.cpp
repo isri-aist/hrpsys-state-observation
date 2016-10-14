@@ -116,7 +116,6 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
   Kdo_<<-0.0,0,0,
        0,-0.0,0,
        0,0,-10;
-
 }
 
 AttitudeEstimator::~AttitudeEstimator()

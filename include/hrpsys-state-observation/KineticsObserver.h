@@ -160,6 +160,8 @@ class KineticsObserver
   stateObservation::IndexedMatrixArray inputLog;
   stateObservation::IndexedMatrixArray outputLog;
 
+  bool rightFootIn_;
+
 
   int contactNbr_;
 
