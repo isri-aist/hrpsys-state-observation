@@ -6,11 +6,16 @@
  *
  * $Id$
  */
-
+#include <hrpsys-state-observation/KineticsObserver.h>
 #include <hrpUtil/Eigen3d.h>
 #include <Eigen/Geometry>
 
-#include <hrpsys-state-observation/KineticsObserver.h>
+#include <rtm/CorbaNaming.h>
+#include <hrpModel/Sensor.h>
+
+using namespace motion_generator;
+
+
 #include <hrpsys-state-observation/VectorConvert.h>
 
 namespace so=stateObservation;
@@ -75,11 +80,13 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
     m_rfforceIn("lfforce",m_rfforce),
     m_lfforceIn("rfforce",m_lfforce),
     m_rpyOut("rpy", m_rpy),
+    m_qIn("q", m_q),
 
     // </rtc-template>
+
     dt_(dt_const),
-    q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
-    r_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
+    Q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
+    R_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
     uk_(inputsize),
     xk_(stateSize_),
     m_compensateMode(true),
@@ -96,8 +103,16 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
   xk_.setZero();
   uk_.setZero();
   estimator_.setFlexibilityGuess(xk_);
-  estimator_.setFlexibilityCovariance(q_);
+  estimator_.setFlexibilityCovariance(Q_);
   estimator_.setRobotMass(mass);
+
+  logger_.setPath("/tmp/");
+
+  logger_.record(yk_,"ko-sensor.log");
+  logger_.record(xk_,"ko-state.log");
+  logger_.record(output_,"ko-input.log");
+  logger_.record(uk_,"ko-output.log");
+  logger_.record(contactNbr_,"ko-contactNbr");
 }
 
 KineticsObserver::~KineticsObserver()
@@ -110,11 +125,14 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
   // Registration: InPort/OutPort/Service
   // <rtc-template block="registration">
   // Set InPort buffers
+
   addInPort("acc", m_accIn);
   addInPort("accRef", m_accRefIn);
   addInPort("rate", m_rateIn);
   addInPort("lfforce", m_lfforceIn);
   addInPort("rfforce", m_rfforceIn);
+
+  addInPort("q", m_qIn);
 
   // Set OutPort buffer
   addOutPort("rpy", m_rpyOut);
@@ -148,6 +166,34 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
   m_rate.data.avx = m_rate.data.avy = m_rate.data.avz = 0.0;
   m_accRef.data.ax = m_accRef.data.ay = m_accRef.data.az = 0.0;
 
+  // load robot model
+  m_body = HumanoidBodyPtr(new HumanoidBody());
+
+  RTC::Manager& rtcManager = RTC::Manager::instance();
+  std::string nameServer = rtcManager.getConfig()["corba.nameservers"];
+  RTC::CorbaNaming naming(rtcManager.getORB(), "localhost:2809");
+  CORBA::Object_ptr ml = naming.resolve("ModelLoader");
+  if (!CORBA::is_nil(ml)){
+      std::cout << "found ModelLoader on localhost:2809" << std::endl;
+  }else{
+    int comPos = nameServer.find(",");
+    if (comPos < 0){
+      comPos = nameServer.length();
+    }
+    nameServer = nameServer.substr(0, comPos);
+      naming.init(nameServer.c_str());
+  }
+
+  if (!loadHumanoidBodyFromModelLoader(m_body, prop["model"].c_str(),
+                                       CosNaming::NamingContext::_duplicate(naming.getRootContext()), true)){
+      std::cerr << "failed to load model[" << prop["model"] << "]"
+                << std::endl;
+  }
+
+  m_body->getPosture(m_qOld);
+
+  std::cout << "m_body FIRST " << m_body<< std::endl;
+
   return RTC::RTC_OK;
 }
 
@@ -158,10 +204,7 @@ RTC::ReturnCode_t KineticsObserver::onFinalize()
 {
   if (m_debugLevel>0)
   {
-    sensorLog.writeInFile("/tmp/ko-sensor.log");
-    stateLog.writeInFile("/tmp/ko-state.log");
-    inputLog.writeInFile("/tmp/ko-input.log");
-    outputLog.writeInFile("/tmp/ko-output.log");
+    logger_.save();
   }
   return RTC::RTC_OK;
 }
@@ -185,9 +228,6 @@ RTC::ReturnCode_t KineticsObserver::onActivated(RTC::UniqueId ec_id)
 {
   std::cout << "KineticsObserver::onActivated(" << ec_id << ")" << std::endl;
 
-//  std::cout << "KineticsObserver: Q = " << m_Q << ", Q_bw = " << m_Qbw
-//            << ", R = " << m_R << ", dt = " << m_dt << ", filter order = "
-//            << m_filter_order << ", Tgsens = " << m_Tgsens << std::endl;
 
   return RTC::RTC_OK;
 }
@@ -202,32 +242,35 @@ RTC::ReturnCode_t KineticsObserver::onDeactivated(RTC::UniqueId ec_id)
 
 RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 {
+  m_debugLevel=1;
+
+
   if (m_debugLevel > 0)
   {
     std::cout << "KineticsObserver::onExecute(" << ec_id << ")" << std::endl;
   }
 
+  assert(false);
 
-  r_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
-  r_(3,3)=r_(4,4)=r_(5,5)=m_gyroCovariance;
-  q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
-  q_(state::fc,state::fc)
-          =q_(state::fc+1,state::fc+1)
-          =q_(state::fc+2,state::fc+2)
-          =q_(state::fc+3,state::fc+3)
-          =q_(state::fc+4,state::fc+4)
-          =q_(state::fc+5,state::fc+5)
-          =q_(state::fc+6,state::fc+6)
-          =q_(state::fc+7,state::fc+7)
-          =q_(state::fc+8,state::fc+8)
-          =q_(state::fc+9,state::fc+9)
-          =q_(state::fc+10,state::fc+10)
-          =q_(state::fc+11,state::fc+11)
+  R_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
+  R_(3,3)=R_(4,4)=R_(5,5)=m_gyroCovariance;
+  Q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
+  Q_(state::fc,state::fc)
+          =Q_(state::fc+1,state::fc+1)
+          =Q_(state::fc+2,state::fc+2)
+          =Q_(state::fc+3,state::fc+3)
+          =Q_(state::fc+4,state::fc+4)
+          =Q_(state::fc+5,state::fc+5)
+          =Q_(state::fc+6,state::fc+6)
+          =Q_(state::fc+7,state::fc+7)
+          =Q_(state::fc+8,state::fc+8)
+          =Q_(state::fc+9,state::fc+9)
+          =Q_(state::fc+10,state::fc+10)
+          =Q_(state::fc+11,state::fc+11)
           =m_stateForceCov;
 
-
-  estimator_.setProcessNoiseCovariance(q_);
-  estimator_.setMeasurementNoiseCovariance(r_);
+  estimator_.setProcessNoiseCovariance(Q_);
+  estimator_.setMeasurementNoiseCovariance(R_);
 
   estimator_.setForceVariance(1e1);
 
@@ -268,15 +311,13 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   estimator_.setWithForcesMeasurements(withForce);
   estimator_.setContactModel(contactModel::elasticContact);
 
-  so::Vector measurement;
-
   if (withForce)
-    measurement.resize(18);
+    yk_.resize(18);
   else
-    measurement.resize(6);
+    yk_.resize(6);
 
 
-  measurement.head<6>() << m_acc.data.ax,   ///------------
+  yk_.head<6>() << m_acc.data.ax,   ///------------
                    m_acc.data.ay,   /// accelerometer
                    m_acc.data.az,   ///-------------
                    m_rate.data.avx, ///-------------
@@ -290,7 +331,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     if (m_lfforce.data[2]>mass*9.8*0.01)
     {
       ++contactNbr_;
-      measurement.segment<6>(measurementIndex)
+      yk_.segment<6>(measurementIndex)
                        << m_lfforce.data[0],
                           m_lfforce.data[1],
                           m_lfforce.data[2],
@@ -303,7 +344,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     if (m_rfforce.data[2]>mass*9.8*0.01)
     {
       ++contactNbr_;
-      measurement.segment<6>(measurementIndex)
+      yk_.segment<6>(measurementIndex)
                        << m_rfforce.data[0],
                           m_rfforce.data[1],
                           m_rfforce.data[2],
@@ -319,11 +360,11 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
 
   estimator_.setContactsNumber(contactNbr_);
-  measurement.conservativeResize(estimator_.getMeasurementSize());
+  yk_.conservativeResize(estimator_.getMeasurementSize());
 
 
 
-  estimator_.setMeasurement(measurement);
+  estimator_.setMeasurement(yk_);
 
   uk_.resize(estimator_.getInputSize());
 
@@ -342,13 +383,90 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   if (contactNbr_>0)
   {
-    if (rightFootIn_)
-      uk_.segment<12>(Input::contacts)<<0,+0.19,0,0,0,0,0,0,0,0,0,0;
-    else
-      uk_.segment<12>(Input::contacts)<<0,-0.19,0,0,0,0,0,0,0,0,0,0;
-    if (contactNbr_>1)
-      uk_.segment<12>(Input::contacts+12)<<0,-0.19,0,0,0,0,0,0,0,0,0,0;
+      if (rightFootIn_)
+        uk_.segment<12>(Input::contacts)<<0,0,0,0,0,0,0,0,0,0,0;
+      else
+        uk_.segment<12>(Input::contacts)<<0,-0.19,0,0,0,0,0,0,0,0,0,0;
+      if (contactNbr_>1)
+        uk_.segment<12>(Input::contacts+12)<<0,-0.19,0,0,0,0,0,0,0,0,0,0;
   }
+
+  hrp::Matrix33 sensorR;
+
+  if (m_qIn.isNew()) {
+    m_qIn.read();
+
+    hrp::dvector dq(m_body->numJoints());
+
+    for (unsigned int i=0; i<m_body->numJoints(); i++){
+      dq[i] = (m_q.data[i] - m_qOld[i])/dt_;
+      m_qOld[i] = m_q.data[i];
+    }
+    m_body->setPosture(m_qOld, dq);
+    m_body->calcForwardKinematics(true);
+
+    estimator_.setRobotMass(m_body->totalMass());
+
+
+
+    // Position and orientation of the IMU.
+    hrp::Sensor *gyro = m_body->sensor(hrp::Sensor::RATE_GYRO, 0);
+    sensorR = gyro->link->attitude()*gyro->localR;
+    hrp::Vector3 sensorP = gyro->link->p + sensorR*gyro->localPos;
+    //std::cout << "gyro position = " << sensorP.transpose() << std::endl;
+    //std::cout << "gyro orientation = " << sensorR << std::endl;
+
+    uk_.segment<3> (Input::posIMU)<<sensorP;
+    uk_.segment<3> (Input::oriIMU)<<so::kine::rotationMatrixToRotationVector(sensorR);
+    uk_.segment<3> (Input::linVelIMU)<<0,0,0;
+    uk_.segment<3> (Input::angVelIMU)<<0,0,0;
+    uk_.segment<3> (Input::linAccIMU)<<0,0,0;
+
+    // The angular and linear momenta
+    hrp::Vector3 P, L;
+    m_body->calcTotalMomentum(P, L);
+    //std::cout << "angular momentum = " << L.transpose() << std::endl;
+
+    // Position of the CoM.
+    uk_.segment<3> (Input::posCom)=m_body->calcCM();
+    uk_.segment<3> (Input::velCom)=L/m_body->totalMass(); //velocity of the CoM
+    std::cout << "CoM = " << uk_.segment<3>(Input::posCom).transpose() << std::endl;
+    std::cout << "q_ " << m_qOld.transpose() << std::endl;
+
+
+    // Position of the end effectors.
+    hrp::Link *rhand = m_body->wristLink[0];
+    hrp::Link *lhand = m_body->wristLink[1];
+    hrp::Link *rfoot = m_body->ankleLink[0];
+    hrp::Link *lfoot = m_body->ankleLink[1];
+
+
+    if (contactNbr_>0)
+    {
+      if (rightFootIn_)
+        uk_.segment<12>(Input::contacts)<<rfoot->p,so::kine::rotationMatrixToRotationVector(rfoot->attitude()),0,0,0,0,0,0;
+      else
+        uk_.segment<12>(Input::contacts)<<lfoot->p,so::kine::rotationMatrixToRotationVector(lfoot->attitude()),0,0,0,0,0,0;
+      if (contactNbr_>1)
+        uk_.segment<12>(Input::contacts+12)<<rfoot->p,so::kine::rotationMatrixToRotationVector(rfoot->attitude()),0,0,0,0,0,0;
+    }
+
+    std::cout << "right foot position = " << rfoot->p.transpose() << " Orientation "  << so::kine::rotationMatrixToRotationVector(rfoot->attitude()).transpose() << std::endl;
+    std::cout << "left  foot position = " << lfoot->p.transpose() << " Orientation "  << so::kine::rotationMatrixToRotationVector(lfoot->attitude()).transpose() << std::endl;
+    //std::cout << "right hand orientation = " << rhand->attitude() << std::endl;
+
+
+    // The matrix of inertia
+    hrp::dmatrix M;
+    m_body->calcMassMatrix(M);
+    //std::cout << "mass matrix = " << M << std::endl;
+
+    // Mass of the robot
+    //std::cout << "mass = " << m_body->totalMass() << "[kg]" << std::endl;
+  }
+
+
+
 
 
 
@@ -360,7 +478,8 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   so::Vector3 orientation(xk_.segment<3>(indexes::ori));
 
-  so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation));
+  so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation)*sensorR);
+
 
   so::Vector3 euler(so::kine::rotationMatrixToRollPitchYaw(mat));
 
@@ -374,21 +493,27 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   m_rpy.data.p = output[1];
   m_rpy.data.y = output[2];
   m_rpyOut.write();
-  if (m_debugLevel > 0)
+
+
+  //if (m_debugLevel > 2)
   {
     printf("acc:%6.3f %6.3f %6.3f, rate:%6.3f %6.3f %6.3f, rpy:%6.3f %6.3f %6.3f \n",
-           measurement[0], measurement[1], measurement[2],
-           measurement[3], measurement[4], measurement[5],
+           yk_[0], yk_[1], yk_[2],
+           yk_[3], yk_[4], yk_[5],
            m_rpy.data.r, m_rpy.data.p, m_rpy.data.y);
 
 
-    sensorLog.pushBack(measurement);
-    stateLog.pushBack(xk_);
-    outputLog.pushBack(output);
-    so::Vector inputbis(estimator_.getInputSize()+1);
-    inputbis<<uk_, contactNbr_;
-    inputLog.pushBack(inputbis);
+    std::cout << "Contact Number " << contactNbr_ << " withForce "<< withForce << std::endl;
+    std::cout << "U " << uk_.transpose()<< std::endl;
+    std::cout << "K" << std::endl << estimator_.getEKF().getLastGain() << std::endl;
+    logger_.push();
+
   }
+
+
+  std::cout << "result" << output.transpose()<<std::endl;
+
+
 
   return RTC::RTC_OK;
 }

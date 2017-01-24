@@ -112,6 +112,14 @@ include_directories(
   )
 link_directories(${HRPSYSBASE_LIBRARY_DIRS})
 
+
+pkg_check_modules(HMC2 hmc2)
+include_directories(
+  ${HMC2_PREFIX}/include/hmc2
+  ${HMC2_PREFIX}/include/hmc2/Model
+  )
+link_directories(${HMC2_LIBRARY_DIRS})
+
 if(NOT CMAKE_BUILD_TYPE)
   set(
     CMAKE_BUILD_TYPE Release CACHE STRING

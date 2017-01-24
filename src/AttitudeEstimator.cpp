@@ -235,6 +235,11 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   if (m_debugLevel>0)
   {
     std::cout << "AttitudeEstimator::onExecute(" << ec_id << ")" << std::endl;
+    std::cout << "state_cov " << m_stateCov
+            << " ori_acc_cov " << m_orientationAccCov
+            << " acc_cov " << m_acceleroCovariance
+            << " gyr_cov " << m_gyroCovariance
+            << std::endl;
   }
 
   q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;

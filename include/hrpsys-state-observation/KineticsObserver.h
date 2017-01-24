@@ -18,8 +18,12 @@
 #include <rtm/idl/BasicDataTypeSkel.h>
 #include <rtm/idl/ExtendedDataTypesSkel.h>
 
+#include <Model/HumanoidBodyUtil.h>
+
+
 #include <state-observation/flexibility-estimation/model-base-ekf-flex-estimator-imu.hpp>
-// Service implementation headers
+#include <state-observation/tools/logger.hpp>
+// Service implementation headers  motion_generator::HumanoidBodyPtr m_body;
 // <rtc-template block="service_impl_h">
 
 // </rtc-template>
@@ -98,6 +102,9 @@ class KineticsObserver
   std::vector<double> m_offset;
   bool m_debugLevel;
 
+  TimedDoubleSeq m_q;
+  InPort<TimedDoubleSeq> m_qIn;
+
   // </rtc-template>
 
   // DataInPort declaration
@@ -140,8 +147,8 @@ class KineticsObserver
 
 
   ///Sizes of the states for the state, the measurement, and the input vector
-  const unsigned stateSize_=35;
-  const unsigned measurementSize_=6;
+  static const unsigned stateSize_=35;
+  static const unsigned measurementSize_=6;
 
   double dt_;
 
@@ -152,16 +159,26 @@ class KineticsObserver
   stateObservation::Vector xk_;
   stateObservation::Vector uk_;
 
-  stateObservation::Matrix q_;
-  stateObservation::Matrix r_;
+  stateObservation::Matrix Q_;
+  stateObservation::Matrix R_;
 
-  stateObservation::IndexedMatrixArray sensorLog;
-  stateObservation::IndexedMatrixArray stateLog;
-  stateObservation::IndexedMatrixArray inputLog;
-  stateObservation::IndexedMatrixArray outputLog;
+  stateObservation::Vector yk_;
+  stateObservation::Vector output_;
+  stateObservation::Vector fq_;
+
+
+
+  motion_generator::HumanoidBodyPtr m_body;
+  hrp::dvector m_qOld;
+
+  //matrixContainers
+//  {
+
+  //}
+
+  stateObservation::tools::Logger logger_;
 
   bool rightFootIn_;
-
 
   int contactNbr_;
 
