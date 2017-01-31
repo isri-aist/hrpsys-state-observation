@@ -104,6 +104,16 @@ class KineticsObserver
 
   TimedDoubleSeq m_q;
   InPort<TimedDoubleSeq> m_qIn;
+  TimedPoint3D m_pRef;
+  InPort<TimedPoint3D> m_pRefIn;
+  TimedOrientation3D m_rpyRef;
+  InPort<TimedOrientation3D> m_rpyRefIn;
+  TimedDoubleSeq m_qEncoder;
+  InPort<TimedDoubleSeq> m_qEncoderIn;
+
+
+
+
 
   // </rtc-template>
 
@@ -120,6 +130,10 @@ class KineticsObserver
   InPort<TimedAcceleration3D> m_accRefIn;
   TimedAngularVelocity3D m_rate;
   InPort<TimedAngularVelocity3D> m_rateIn;
+
+
+
+
 
   // </rtc-template>
 
@@ -164,12 +178,15 @@ class KineticsObserver
 
   stateObservation::Vector yk_;
   stateObservation::Vector output_;
-  stateObservation::Vector fq_;
+  stateObservation::Vector q_;
+  stateObservation::Vector qEncoder_;
+  stateObservation::Vector dq_;
 
+  stateObservation::Vector pRef_;
+  stateObservation::Vector oriRef_;
 
 
   motion_generator::HumanoidBodyPtr m_body;
-  hrp::dvector m_qOld;
 
   //matrixContainers
 //  {
@@ -179,6 +196,8 @@ class KineticsObserver
   stateObservation::tools::Logger logger_;
 
   bool rightFootIn_;
+
+  bool firstPostureSample_;
 
   int contactNbr_;
 
