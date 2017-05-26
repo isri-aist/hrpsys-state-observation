@@ -7,8 +7,8 @@
  * $Id$
  */
 
-#ifndef KineticsObserver_H
-#define KineticsObserver_H
+#ifndef RTC__KineticsObserver_H
+#define RTC__KineticsObserver_H
 
 #include <rtm/Manager.h>
 #include <rtm/DataFlowComponentBase.h>
@@ -90,6 +90,8 @@ class KineticsObserver
   // no corresponding operation exists in OpenRTm-aist-0.2.0
   // virtual RTC::ReturnCode_t onRateChanged(RTC::UniqueId ec_id);
 
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
+
 
  protected:
   // Configuration variable declaration
@@ -108,8 +110,8 @@ class KineticsObserver
   InPort<TimedPoint3D> m_pRefIn;
   TimedOrientation3D m_rpyRef;
   InPort<TimedOrientation3D> m_rpyRefIn;
-  TimedDoubleSeq m_qEncoder;
-  InPort<TimedDoubleSeq> m_qEncoderIn;
+  TimedDoubleSeq m_qRef;
+  InPort<TimedDoubleSeq> m_qRefIn;
 
 
 
@@ -179,11 +181,21 @@ class KineticsObserver
   stateObservation::Vector yk_;
   stateObservation::Vector output_;
   stateObservation::Vector q_;
-  stateObservation::Vector qEncoder_;
+  stateObservation::Vector qRef_;
   stateObservation::Vector dq_;
 
   stateObservation::Vector pRef_;
-  stateObservation::Vector oriRef_;
+  stateObservation::Vector oriVRef_;
+  stateObservation::Matrix3 oriRef_;
+
+  stateObservation::Matrix3 oriIMU_;
+  stateObservation::Vector3 posIMU_;
+
+
+  stateObservation::Vector dpRef_;
+  stateObservation::Vector omegaRef_;
+
+  stateObservation::Vector imurpy_;
 
 
   motion_generator::HumanoidBodyPtr m_body;
@@ -197,7 +209,7 @@ class KineticsObserver
 
   bool rightFootIn_;
 
-  bool firstPostureSample_;
+  bool firstPostureSample_,firstPosSample_,firstOrientationSample_;
 
   int contactNbr_;
 

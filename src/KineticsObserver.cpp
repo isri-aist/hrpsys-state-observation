@@ -25,7 +25,6 @@ typedef fest::IMUElasticLocalFrameDynamicalSystem::state state;
 typedef fest::IMUElasticLocalFrameDynamicalSystem::input Input;
 typedef so::flexibilityEstimation::IMUElasticLocalFrameDynamicalSystem::contactModel contactModel;
 
-
 const int inputsize=6;
 
 const double acc_cov_const=1e-4;
@@ -81,7 +80,7 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
     m_lfforceIn("rfforce",m_lfforce),
     m_rpyOut("rpy", m_rpy),
     m_qIn("q", m_q),
-    m_qEncoderIn("qEncoder",m_qEncoder),
+    m_qRefIn("qRef",m_qRef),
     m_pRefIn("pRef", m_pRef),
     m_rpyRefIn("rpyRef", m_rpyRef),
 
@@ -114,9 +113,8 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
 
   pRef_.resize(3);
   pRef_.setZero();
-  oriRef_.resize(3);
-  oriRef_.setZero();
-
+  imurpy_=dpRef_=oriVRef_=omegaRef_=pRef_;
+  oriRef_.setIdentity();
 
   if (m_debugLevel>0)
   {
@@ -126,10 +124,17 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
     logger_.record(uk_,"ko-input.log");
     logger_.record(contactNbr_,"ko-contactNbr.log");
     logger_.record(pRef_,"ko-position-ref.log");
-    logger_.record(oriRef_,"ko-orientation-ref.log");
+    logger_.record(oriVRef_,"ko-orientation-ref.log");
+    logger_.record(dpRef_,"ko-linvel-ref.log");
+    logger_.record(omegaRef_,"ko-angvel-ref.log");
+    logger_.record(omegaRef_,"ko-angvel-ref.log");
     logger_.record(q_,"ko-posture.log");
-    logger_.record(qEncoder_,"ko-encoder.log");
+    logger_.record(qRef_,"ko-q-ref.log");
     logger_.record(dq_,"ko-derivative.log");
+    logger_.record(imurpy_,"ko-imu-rpy.log");
+    logger_.record(posIMU_,"ko-imu-pos.log");
+    logger_.record(oriIMU_,"ko-imu-ori.log");
+
   }
 }
 
@@ -151,7 +156,7 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
   addInPort("rfforce", m_rfforceIn);
 
   addInPort("q", m_qIn);
-  addInPort("qEncoder",m_qEncoderIn);
+  addInPort("qRef",m_qRefIn);
 
   addInPort("pRef", m_pRefIn);
   addInPort("rpyRef", m_rpyRefIn);
@@ -220,11 +225,13 @@ RTC::ReturnCode_t KineticsObserver::onInitialize()
   }
 
   m_body->getPosture(q_);
-  qEncoder_=q_;
+  qRef_=q_;
   dq_=0*q_;
 
-
-
+  pRef_.resize(3);
+  pRef_.setZero();
+  dpRef_=omegaRef_=pRef_;
+  oriRef_=so::Matrix3::Identity();
 
   std::cout << "m_body FIRST " << m_body<< std::endl;
 
@@ -289,19 +296,8 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   R_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
   R_(3,3)=R_(4,4)=R_(5,5)=m_gyroCovariance;
   Q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
-  Q_(state::fc,state::fc)
-    =Q_(state::fc+1,state::fc+1)
-     =Q_(state::fc+2,state::fc+2)
-      =Q_(state::fc+3,state::fc+3)
-       =Q_(state::fc+4,state::fc+4)
-        =Q_(state::fc+5,state::fc+5)
-         =Q_(state::fc+6,state::fc+6)
-          =Q_(state::fc+7,state::fc+7)
-           =Q_(state::fc+8,state::fc+8)
-            =Q_(state::fc+9,state::fc+9)
-             =Q_(state::fc+10,state::fc+10)
-              =Q_(state::fc+11,state::fc+11)
-               =m_stateForceCov;
+
+  Q_.diagonal().segment<12>(state::fc).setConstant(m_stateForceCov);
 
   estimator_.setProcessNoiseCovariance(Q_);
   estimator_.setMeasurementNoiseCovariance(R_);
@@ -338,7 +334,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     if (m_rfforceIn.isNew())
     {
       m_rfforceIn.read();
-      withForce=true;
+      //withForce=true;
     }
   }
 
@@ -396,11 +392,10 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   estimator_.setContactsNumber(contactNbr_);
   yk_.conservativeResize(estimator_.getMeasurementSize());
 
-
-
   estimator_.setMeasurement(yk_);
 
   uk_.resize(estimator_.getInputSize());
+  uk_.setZero();
 
   uk_.segment<3> (Input::posCom)<<0,0,0.9;
   uk_.segment<3> (Input::velCom)<<0,0,0;
@@ -425,43 +420,88 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
       uk_.segment<12>(Input::contacts+12)<<0,-0.19,0,0,0,0,0,0,0,0,0,0;
   }
 
-  hrp::Matrix33 sensorR;
-
   if (m_pRefIn.isNew())
   {
     m_pRefIn.read();
+    if (firstPosSample_)
+    {
+      dpRef_[0]=0;
+      dpRef_[1]=0;
+      dpRef_[2]=0;
+    }
+    else
+    {
+      dpRef_[0]=(m_pRef.data.x - pRef_[0])/dt_;
+      dpRef_[1]=(m_pRef.data.y - pRef_[1])/dt_;
+      dpRef_[2]=(m_pRef.data.z - pRef_[2])/dt_;
+    }
+
     pRef_[0]=m_pRef.data.x;
     pRef_[1]=m_pRef.data.y;
     pRef_[2]=m_pRef.data.z;
     std::cout << "PRef " << pRef_.transpose()<< std::endl;
+
+    firstPosSample_=false;
+  }
+  else
+  {
+    firstPosSample_=true;
   }
 
   if (m_rpyRefIn.isNew())
   {
     m_rpyRefIn.read();
-    oriRef_[0]=m_rpyRef.data.r;
-    oriRef_[1]=m_rpyRef.data.p;
-    oriRef_[2]=m_rpyRef.data.y;
 
-    std::cout << "rpyRef " << oriRef_.transpose() << std::endl;
+    if (firstOrientationSample_)
+    {
+      omegaRef_[0]=0;
+      omegaRef_[1]=0;
+      omegaRef_[2]=0;
+      oriRef_ = so::kine::rollPitchYawToRotationMatrix
+                                        (m_rpyRef.data.r,
+                                          m_rpyRef.data.p,
+                                            m_rpyRef.data.y);
+    }
+    else
+    {
+      stateObservation::Matrix3 rpy1;
+
+      rpy1= so::kine::rollPitchYawToRotationMatrix
+                                        (m_rpyRef.data.r,
+                                          m_rpyRef.data.p,
+                                            m_rpyRef.data.y);
+
+      omegaRef_ = so::kine::rotationMatrixToRotationVector
+                                          (rpy1*oriRef_.transpose())/dt_;
+      oriRef_ =rpy1;
+    }
+
+    oriVRef_<<m_rpyRef.data.r,
+                    m_rpyRef.data.p,
+                      m_rpyRef.data.y;
+
+    firstOrientationSample_=false;
+
+    std::cout << "rpyRef " << oriVRef_.transpose() << std::endl;
+  }
+  else
+  {
+    firstOrientationSample_=true;
   }
 
-  if (m_qEncoderIn.isNew())
+  if (m_qRefIn.isNew())
   {
-    m_qEncoderIn.read();
+    m_qRefIn.read();
 
     for (unsigned int i=0; i<m_body->numJoints(); i++)
     {
-      qEncoder_[i] = m_qEncoder.data[i];
+      qRef_[i] = m_qRef.data[i];
     }
   }
-
 
   if (m_qIn.isNew())
   {
     m_qIn.read();
-
-
 
     for (unsigned int i=0; i<m_body->numJoints(); i++)
     {
@@ -473,30 +513,29 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
       {
         dq_[i] = (m_q.data[i] - q_[i])/dt_;
       }
-      firstPostureSample_=false;
       q_[i] = m_q.data[i];
     }
+    qRef_=qRef_-q_;
+    firstPostureSample_=false;
 
-    m_body->setPosture(q_, dq_);
+    m_body->setPosture(q_, dq_,pRef_,oriRef_,dpRef_,omegaRef_);
     m_body->calcForwardKinematics(true);
-
-
 
     //m_body->
 
     estimator_.setRobotMass(m_body->totalMass());
 
-
-
     // Position and orientation of the IMU.
     hrp::Sensor *gyro = m_body->sensor(hrp::Sensor::RATE_GYRO, 0);
-    sensorR = gyro->link->attitude()*gyro->localR;
-    hrp::Vector3 sensorP = gyro->link->p + sensorR*gyro->localPos;
+    oriIMU_ = gyro->link->attitude()*gyro->localR;
+    posIMU_= gyro->link->p + gyro->link->attitude()*gyro->localPos;
     //std::cout << "gyro position = " << sensorP.transpose() << std::endl;
     //std::cout << "gyro orientation = " << sensorR << std::endl;
 
-    uk_.segment<3> (Input::posIMU)<<sensorP;
-    uk_.segment<3> (Input::oriIMU)<<so::kine::rotationMatrixToRotationVector(sensorR);
+    imurpy_=so::kine::rotationMatrixToRollPitchYaw(oriIMU_);
+
+    uk_.segment<3> (Input::posIMU)<<posIMU_;
+    uk_.segment<3> (Input::oriIMU)<<so::kine::rotationMatrixToRotationVector(oriIMU_);
     uk_.segment<3> (Input::linVelIMU)<<0,0,0;
     uk_.segment<3> (Input::angVelIMU)<<0,0,0;
     uk_.segment<3> (Input::linAccIMU)<<0,0,0;
@@ -519,9 +558,6 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
     hrp::Link *rfoot = m_body->ankleLink[0];
     hrp::Link *lfoot = m_body->ankleLink[1];
     hrp::Link *waistP = m_body->waistPjoint;
-
-
-
 
     if (contactNbr_>0)
     {
@@ -553,7 +589,16 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   }
 
 
-
+  if (logger_.getRecord(&xk_).getLastIndex()>1000)
+  {
+    std::cout << "Unmodeled force "<< xk_.segment<6>(state::unmodeledForces).transpose() << std::endl;
+  }
+  else if (logger_.getRecord(&xk_).getLastIndex()==1000)
+  {
+    estimator_.setWithUnmodeledForces(true);
+    estimator_.setUnmodeledForceVariance(2);
+    estimator_.setUnmodeledForceProcessVariance(0);
+  }
 
 
 
@@ -565,7 +610,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
 
   so::Vector3 orientation(xk_.segment<3>(indexes::ori));
 
-  so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation)*sensorR);
+  so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation)*oriIMU_);
 
 
   so::Vector3 euler(so::kine::rotationMatrixToRollPitchYaw(mat));
