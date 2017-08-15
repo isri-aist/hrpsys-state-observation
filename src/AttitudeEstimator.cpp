@@ -23,10 +23,14 @@ const double gyr_cov_const=1e-10;
 const double ori_acc_const=1e0;
 const double state_cov_const=3e-13;
 
+const double sampling_time_const = 0.002;
+
 static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
 static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
 static const std::string ori_acc_char  =so::tools::toString(ori_acc_const);
 static const std::string state_cov_char=so::tools::toString(state_cov_const);
+
+static const std::string sampling_time_char=so::tools::toString(sampling_time_const);
 
 
 // Module specification
@@ -50,7 +54,8 @@ static const char* AttitudeEstimator_spec[] =
   "conf.default.gyr_cov", gyr_cov_char.c_str(),
   "conf.default.ori_acc_cov", ori_acc_char.c_str(),
   "conf.default.state_cov", state_cov_char.c_str(),
-  "conf.default.debugLevel", "0",
+  "conf.default.debug_level", "0",
+  "conf.default.sampling_time", sampling_time_char.c_str(),
   ""
 };
 // </rtc-template>
@@ -139,12 +144,14 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
   bindParameter("gyr_cov", m_gyroCovariance, gyr_cov_char.c_str());
   bindParameter("ori_acc_cov", m_orientationAccCov, ori_acc_char.c_str());
   bindParameter("state_cov", m_stateCov, state_cov_char.c_str());
-  bindParameter("debugLevel", m_debugLevel, "0");
-
-  // </rtc-template>
+  bindParameter("debug_level", m_debugLevel, "0");
 
   RTC::Properties& prop = getProperties();
   coil::stringTo(dt_, prop["dt"].c_str());
+
+  bindParameter("sampling_time", dt_, prop["dt"].c_str());
+
+  // </rtc-template>
 
 
 
