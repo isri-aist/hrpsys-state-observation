@@ -70,7 +70,7 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
 
     // </rtc-template>
     filter_(stateSize_, measurementSize_, inputSize_, false),
-    dt_(0.005),
+    dt_(sampling_time_const),
     q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
     r_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
     uk_(inputsize),
@@ -150,6 +150,7 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
   coil::stringTo(dt_, prop["dt"].c_str());
 
   bindParameter("sampling_time", dt_, prop["dt"].c_str());
+
 
   // </rtc-template>
 
