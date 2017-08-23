@@ -151,7 +151,6 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
 
   bindParameter("sampling_time", dt_, prop["dt"].c_str());
 
-
   // </rtc-template>
 
 
@@ -201,6 +200,9 @@ RTC::ReturnCode_t AttitudeEstimator::onActivated(RTC::UniqueId ec_id)
 //            << ", R = " << m_R << ", dt = " << m_dt << ", filter order = "
 //            << m_filter_order << ", Tgsens = " << m_Tgsens << std::endl;
 
+  RTC::Properties& prop = getProperties();
+  coil::stringTo(dt_, prop["dt"].c_str());
+
   return RTC::RTC_OK;
 }
 
@@ -217,7 +219,6 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   log_=1;
 
   imuFunctor_.setSamplingPeriod(dt_);
-
 
   if (m_debugLevel>0)
   {
