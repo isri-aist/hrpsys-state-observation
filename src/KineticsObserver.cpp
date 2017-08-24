@@ -30,6 +30,8 @@ const double state_cov_const=1e-12;
 
 const double mass=80.;
 
+const double dt_const=0.002;
+
 static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
 static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
 static const std::string state_fc_char  =so::tools::toString(state_fc_const);
@@ -74,7 +76,7 @@ KineticsObserver::KineticsObserver(RTC::Manager* manager)
     m_rpyOut("rpy", m_rpy),
 
     // </rtc-template>
-    dt_(0.005),
+    dt_(dt_const),
     q_(so::Matrix::Identity(stateSize_,stateSize_)*state_cov_const),
     r_(so::Matrix::Identity(measurementSize_,measurementSize_)*acc_cov_const),
     uk_(inputsize),
