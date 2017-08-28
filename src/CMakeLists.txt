@@ -27,6 +27,6 @@ PKG_CONFIG_USE_DEPENDENCY(KineticsObserverComp state-observation)
 set(target KineticsObserver KineticsObserverComp AttitudeEstimator AttitudeEstimatorComp)
 
 install(TARGETS ${target}
-  RUNTIME DESTINATION bin CONFIGURATIONS Release Debug
-  LIBRARY DESTINATION lib CONFIGURATIONS Release Debug
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
 )
