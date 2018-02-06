@@ -21,14 +21,18 @@ const int inputsize=6;
 const double acc_cov_const=1e-4;
 const double gyr_cov_const=1e-10;
 const double ori_acc_const=1e0;
+const double lin_acc_const=1e-7;
 const double state_cov_const=3e-13;
+const double state_init_cov_const=0;
 
 const double sampling_time_const = 0.002;
 
 static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
 static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
 static const std::string ori_acc_char  =so::tools::toString(ori_acc_const);
+static const std::string lin_acc_char  =so::tools::toString(lin_acc_const);
 static const std::string state_cov_char=so::tools::toString(state_cov_const);
+static const std::string state_init_cov_char=so::tools::toString(state_init_cov_const);
 
 static const std::string sampling_time_char=so::tools::toString(sampling_time_const);
 
@@ -53,8 +57,10 @@ static const char* AttitudeEstimator_spec[] =
   "conf.default.acc_cov", acc_cov_char.c_str(),
   "conf.default.gyr_cov", gyr_cov_char.c_str(),
   "conf.default.ori_acc_cov", ori_acc_char.c_str(),
+  "conf.default.lin_acc_cov", lin_acc_char.c_str(),
   "conf.default.state_cov", state_cov_char.c_str(),
   "conf.default.debug_level", "0",
+  "conf.default.state_init_cov", state_init_cov_char.c_str(),
   "conf.default.sampling_time", sampling_time_char.c_str(),
   ""
 };
@@ -79,9 +85,11 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
     m_acceleroCovariance(acc_cov_const),
     m_gyroCovariance(gyr_cov_const),
     m_orientationAccCov(ori_acc_const),
-    m_stateCov(state_cov_const)
+    m_stateCov(state_cov_const),
+    m_stateInitCov(state_init_cov_const)
 {
   q_(9,9)=q_(10,10)=q_(11,11)=ori_acc_const;
+  q_(6,6)=q_(7,7)=q_(8,8)=lin_acc_const;
 
   r_(3,3)=r_(4,4)=r_(5,5)=gyr_cov_const;
 
@@ -94,7 +102,7 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
   xk_.setZero();
   uk_.setZero();
   filter_.setState(xk_,0);
-  filter_.setStateCovariance(q_);
+  filter_.setStateCovariance(so::Matrix::Identity(stateSize_,stateSize_)*m_stateInitCov);
 
   Kpt_<<-20,0,0,
        0,-20,0,
@@ -143,7 +151,10 @@ RTC::ReturnCode_t AttitudeEstimator::onInitialize()
   bindParameter("acc_cov",m_acceleroCovariance, acc_cov_char.c_str());
   bindParameter("gyr_cov", m_gyroCovariance, gyr_cov_char.c_str());
   bindParameter("ori_acc_cov", m_orientationAccCov, ori_acc_char.c_str());
+  bindParameter("lin_acc_cov", m_linearAccCov, lin_acc_char.c_str());
   bindParameter("state_cov", m_stateCov, state_cov_char.c_str());
+  bindParameter("state_init_cov", m_stateInitCov, state_init_cov_char.c_str());
+
   bindParameter("debug_level", m_debugLevel, "0");
 
   RTC::Properties& prop = getProperties();
@@ -228,6 +239,7 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   q_.noalias()=so::Matrix::Identity(stateSize_,stateSize_)*m_stateCov;
   r_.noalias()=so::Matrix::Identity(measurementSize_,measurementSize_)*m_acceleroCovariance;
   q_(9,9)=q_(10,10)=q_(11,11)=m_orientationAccCov;
+  q_(6,6)=q_(7,7)=q_(8,8)=m_linearAccCov;
   r_(3,3)=r_(4,4)=r_(5,5)=m_gyroCovariance;
 
   filter_.setQ(q_);

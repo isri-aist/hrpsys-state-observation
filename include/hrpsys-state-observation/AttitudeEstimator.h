@@ -98,8 +98,10 @@ protected:
   double m_acceleroCovariance;
   double m_gyroCovariance;
   double m_orientationAccCov;
+  double m_linearAccCov;
   double m_stateCov;
   std::vector<double> m_offset;
+  double m_stateInitCov;
   bool m_debugLevel;
 
   // </rtc-template>
