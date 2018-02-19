@@ -358,7 +358,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   if (withForce)
   {
     contactNbr_=0;
-    if (m_lfforce.data[2]>mass*9.8*0.01)
+    if (m_lfforce.data[2]>mass*so::cst::gravityConstant*0.01)
     {
       ++contactNbr_;
       yk_.segment<6>(measurementIndex)
@@ -371,7 +371,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
       measurementIndex+=6;
 
     }
-    if (m_rfforce.data[2]>mass*9.8*0.01)
+    if (m_rfforce.data[2]>mass*so::cst::gravityConstant*0.01)
     {
       ++contactNbr_;
       yk_.segment<6>(measurementIndex)
