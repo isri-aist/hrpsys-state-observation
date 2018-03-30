@@ -229,6 +229,8 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 {
   log_=1;
 
+  typedef so::kine::indexes<so::kine::rotationVector> indexes;
+
   imuFunctor_.setSamplingPeriod(dt_);
 
   if (m_debugLevel>0)
@@ -286,10 +288,10 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   int time=filter_.getCurrentTime();
 
   ///damped linear and angular spring
-  uk_.head<3>()=Kpt_*xk_.segment<3>(so::kine::pos)
-                +Kdt_*xk_.segment<3>(so::kine::linVel);
-  uk_.tail<3>()=Kpo_*xk_.segment<3>(so::kine::ori)
-                +Kdo_*xk_.segment<3>(so::kine::angVel);
+  uk_.head<3>()=Kpt_*xk_.segment<3>(indexes::pos)
+                +Kdt_*xk_.segment<3>(indexes::linVel);
+  uk_.tail<3>()=Kpo_*xk_.segment<3>(indexes::ori)
+                +Kdo_*xk_.segment<3>(indexes::angVel);
 
   filter_.setInput(uk_,time);
 
@@ -310,7 +312,7 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   ///get the estimation and give it to the array
   xk_=filter_.getEstimatedState(time+1);
 
-  so::Vector3 orientation(xk_.segment<3>(so::kine::ori));
+  so::Vector3 orientation(xk_.segment<3>(indexes::ori));
 
 
   so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation));

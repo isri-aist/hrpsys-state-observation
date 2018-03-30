@@ -29,7 +29,7 @@ SET(PKG_CONFIG_ADDITIONAL_VARIABLES
 
 SETUP_PROJECT()
 
-
+SET(BOOST_COMPONENTS filesystem system thread program_options unit_test_framework timer)
 SEARCH_FOR_BOOST()
 SEARCH_FOR_EIGEN()
 

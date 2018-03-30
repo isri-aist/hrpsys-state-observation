@@ -36,6 +36,7 @@ static const std::string acc_cov_char  =so::tools::toString(acc_cov_const);
 static const std::string gyr_cov_char  =so::tools::toString(gyr_cov_const);
 static const std::string state_fc_char  =so::tools::toString(state_fc_const);
 static const std::string state_cov_char=so::tools::toString(state_cov_const);
+typedef so::kine::indexes<so::kine::rotationVector> indexes;
 
 
 // Module specification
@@ -343,7 +344,7 @@ RTC::ReturnCode_t KineticsObserver::onExecute(RTC::UniqueId ec_id)
   ///get the estimation and give it to the array
   xk_=estimator_.getFlexibilityVector();
 
-  so::Vector3 orientation(xk_.segment<3>(so::kine::ori));
+  so::Vector3 orientation(xk_.segment<3>(indexes::ori));
 
   so::Matrix3 mat(so::kine::rotationVectorToRotationMatrix(orientation));
 
