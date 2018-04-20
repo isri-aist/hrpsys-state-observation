@@ -69,6 +69,9 @@ static const char* KineticsObserver_spec[] =
 };
 // </rtc-template>
 
+const unsigned KineticsObserver::stateSize_;
+const unsigned KineticsObserver::measurementSize_;
+
 //ctor
 KineticsObserver::KineticsObserver(RTC::Manager* manager)
   : RTC::DataFlowComponentBase(manager),
