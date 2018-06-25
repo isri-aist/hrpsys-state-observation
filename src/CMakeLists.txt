@@ -24,7 +24,20 @@ target_link_libraries(KineticsObserverComp ${Boost_LIBRARIES} ${OPENHRP_LIBRARIE
 
 PKG_CONFIG_USE_DEPENDENCY(KineticsObserverComp state-observation)
 
-set(target KineticsObserver KineticsObserverComp AttitudeEstimator AttitudeEstimatorComp)
+#TiltEstimator
+set(comp_sources_tilt TiltEstimator.cpp)
+add_library(TiltEstimator SHARED ${comp_sources_tilt} ${${PROJECT_NAME}_HEADERS})
+target_link_libraries(TiltEstimator ${Boost_LIBRARIES} ${OPENHRP_LIBRARIES})
+set_target_properties(TiltEstimator PROPERTIES PREFIX "")
+
+PKG_CONFIG_USE_DEPENDENCY(TiltEstimator state-observation)
+
+add_executable(TiltEstimatorComp TiltEstimatorComp.cpp ${comp_sources_tilt} ${${PROJECT_NAME}_HEADERS})
+target_link_libraries(TiltEstimatorComp ${Boost_LIBRARIES} ${OPENHRP_LIBRARIES})
+
+PKG_CONFIG_USE_DEPENDENCY(TiltEstimatorComp state-observation)
+
+set(target TiltEstimator TiltEstimatorComp KineticsObserver KineticsObserverComp AttitudeEstimator AttitudeEstimatorComp)
 
 install(TARGETS ${target}
   RUNTIME DESTINATION bin CONFIGURATIONS Release Debug

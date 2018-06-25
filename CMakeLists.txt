@@ -156,6 +156,7 @@ include(CPack)
 SET(${PROJECT_NAME}_HEADERS
 	${PROJECT_SOURCE_DIR}/include/hrpsys-state-observation/AttitudeEstimator.h
 	${PROJECT_SOURCE_DIR}/include/hrpsys-state-observation/KineticsObserver.h
+        ${PROJECT_SOURCE_DIR}/include/hrpsys-state-observation/TiltEstimator.h
 )
 
 
