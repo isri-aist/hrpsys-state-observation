@@ -60,7 +60,7 @@ TiltEstimator::TiltEstimator(RTC::Manager* manager)
 {
   estimator_.setSamplingTime(dt_);
 
-  xk_.setZero();
+  xk_ << so::Vector3::Zero(), so::Vector3(0, 0, 1);
   estimator_.setState(xk_, 0);
 }
 
