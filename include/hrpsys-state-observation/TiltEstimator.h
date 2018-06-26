@@ -103,11 +103,21 @@ class TiltEstimator : public RTC::DataFlowComponentBase
 
   TimedAcceleration3D m_acc;
   InPort<TimedAcceleration3D> m_accIn;
+  
   TimedAngularVelocity3D m_rate;
   InPort<TimedAngularVelocity3D> m_rateIn;
   
   TimedDoubleSeq m_q;
   InPort<TimedDoubleSeq> m_qIn;
+
+  // The RPY angles for the reference orientation of the waist ({B})
+  TimedOrientation3D m_rpyBRef;
+  InPort<TimedOrientation3D> m_rpyBRefIn;
+
+  // The ZMP reference, expressed in the frame of the waist ({B})
+  // For the tilt estimator to work properly, it is assumed that the ZMP Reference is static
+  TimedPoint3D m_zmpRef;
+  InPort<TimedPoint3D> m_zmpRefIn;
   
   // </rtc-template>
 
@@ -139,8 +149,7 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   
   hrp::BodyPtr m_robot;
 
-  stateObservation::Vector q_;
-  stateObservation::Vector dq_;
+  stateObservation::Vector xk_;
 
   bool firstSample_;
 };

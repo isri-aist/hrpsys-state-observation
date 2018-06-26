@@ -10,7 +10,10 @@
 #include <hrpUtil/Eigen3d.h>
 #include <Eigen/Geometry>
 #include <hrpModel/ModelLoaderUtil.h>
+#include <hrpModel/Link.h>
+#include <hrpModel/Sensor.h>
 
+#include <state-observation/tools/rigid-body-kinematics.hpp>
 #include <hrpsys-state-observation/TiltEstimator.h>
 
 namespace so=stateObservation;
@@ -47,12 +50,18 @@ TiltEstimator::TiltEstimator(RTC::Manager* manager)
   m_accIn("acc", m_acc),
   m_rateIn("rate", m_rate),
   m_qIn("q", m_q),
+  m_rpyBRefIn("rpyBRef", m_rpyBRef),
+  m_zmpRefIn("zmpRef", m_zmpRef),
 
   // </rtc-template>
   estimator_(alpha_const, beta_const),
   dt_(sampling_time_const),
   firstSample_(true)
 {
+  estimator_.setSamplingTime(dt_);
+
+  xk_.setZero();
+  estimator_.setState(xk_, 0);
 }
 
 
@@ -74,6 +83,8 @@ RTC::ReturnCode_t TiltEstimator::onInitialize()
   addInPort("acc", m_accIn);
   addInPort("rate", m_rateIn);
   addInPort("q", m_qIn);
+  addInPort("rpyBRef", m_rpyBRefIn);
+  addInPort("zmpRef", m_zmpRefIn);
 
   // Set OutPort buffers
 
@@ -90,6 +101,8 @@ RTC::ReturnCode_t TiltEstimator::onInitialize()
 
   RTC::Properties& prop = getProperties();
   coil::stringTo(dt_, prop["dt"].c_str());
+
+  estimator_.setSamplingTime(dt_);
 
   // </rtc-template>
 
@@ -162,25 +175,100 @@ RTC::ReturnCode_t TiltEstimator::onDeactivated(RTC::UniqueId ec_id)
 
 RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
 {
+  so::Vector3 ya, yg;
+  
+  if (m_accIn.isNew()) {
+    m_accIn.read();
+    ya << m_acc.data.ax, m_acc.data.ay, m_acc.data.az;
+  }
+  
+  if (m_rateIn.isNew()) {
+    m_rateIn.read();
+    yg << m_rate.data.avx, m_rate.data.avy, m_rate.data.avz;
+  }
+  
+  if (m_rpyBRefIn.isNew()) {
+
+    m_rpyBRefIn.read();
+    
+    so::Matrix3 R = so::kine::rollPitchYawToRotationMatrix(m_rpyBRef.data.r, m_rpyBRef.data.p, m_rpyBRef.data.y);
+
+    so::Vector3 wBRef;
+    if (firstSample_)
+      wBRef.setZero();
+    else {
+      wBRef = so::kine::rotationMatrixToRotationVector(R * m_robot->rootLink()->R.transpose()) / dt_;
+    }
+    
+    m_robot->rootLink()->R = R;
+    m_robot->rootLink()->w = wBRef;
+  }
+
+  if (m_zmpRefIn.isNew()) {
+
+    m_zmpRefIn.read();
+
+    so::Vector3 p;
+    p << m_zmpRef.data.x, m_zmpRef.data.y, m_zmpRef.data.z;
+    p = -m_robot->rootLink()->R * p;
+
+    so::Vector3 vBRef;
+    if (firstSample_)
+      vBRef.setZero();
+    else
+      vBRef = (p - m_robot->rootLink()->p) / dt_;
+
+    m_robot->rootLink()->p = p;
+    m_robot->rootLink()->v = vBRef;
+  }
   
   if (m_qIn.isNew()) {
+    
     m_qIn.read();
+
+    so::Vector dq;
+    dq.setZero(m_robot->numJoints());
 
     for (unsigned i = 0; i < m_robot->numJoints(); i++) {
 
-      if (firstSample_) {
-        dq_[i] = 0;
-        firstSample_ = false;
-      }
+      hrp::Link* test = m_robot->joint(i);
+      test->q;
+
+      if (firstSample_)
+        dq[i] = 0;
       else
-        dq_[i] = (m_q.data[i] - q_[i]) / dt_;
+        dq[i] = (m_q.data[i] - m_robot->joint(i)->q) / dt_;
       
-      q_[i] = m_q.data[i];
+      m_robot->joint(i)->q = m_q.data[i];
+      m_robot->joint(i)->dq = dq[i];
     }
-
-    // m_robot->setPosture(q_, dq_, )
-
   }
+
+  firstSample_ = false;
+
+  m_robot->calcForwardKinematics(true); 
+
+  hrp::Sensor *accel = m_robot->sensor(hrp::Sensor::ACCELERATION, 0);
+  hrp::Sensor *gyro  = m_robot->sensor(hrp::Sensor::RATE_GYRO, 0);
+
+  so::Vector3 b = gyro->link->R * gyro->localPos;
+  
+  so::Vector3 p_S_C = gyro->link->p + b;
+  so::Matrix3 R_S_C = gyro->link->R * gyro->localR;
+  
+  so::Vector3 v_S_C = gyro->link->v + gyro->link->w.cross(b);
+  so::Vector3 w_S_C = gyro->link->w;
+
+  estimator_.setSensorPositionInC(p_S_C);
+  estimator_.setSensorOrientationInC(R_S_C);
+  estimator_.setSensorLinearVelocityInC(v_S_C);
+  estimator_.setSensorAngularVelocityInC(w_S_C);
+
+  int k = estimator_.getCurrentTime();
+
+  estimator_.setMeasurement(ya, yg, k + 1);
+  
+  xk_ = estimator_.getEstimatedState(k + 1);
   
   return RTC::RTC_OK;
 }
