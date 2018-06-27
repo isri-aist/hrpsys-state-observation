@@ -52,6 +52,7 @@ TiltEstimator::TiltEstimator(RTC::Manager* manager)
   m_qIn("q", m_q),
   m_rpyBRefIn("rpyBRef", m_rpyBRef),
   m_zmpRefIn("zmpRef", m_zmpRef),
+  m_tiltOut("tilt", m_tilt),
 
   // </rtc-template>
   estimator_(alpha_const, beta_const),
@@ -59,9 +60,10 @@ TiltEstimator::TiltEstimator(RTC::Manager* manager)
   firstSample_(true)
 {
   estimator_.setSamplingTime(dt_);
-
+  
   xk_ << so::Vector3::Zero(), so::Vector3(0, 0, 1);
   estimator_.setState(xk_, 0);
+  std::cout << "Tilt Estimator constructor" << std::endl;
 }
 
 
@@ -87,7 +89,8 @@ RTC::ReturnCode_t TiltEstimator::onInitialize()
   addInPort("zmpRef", m_zmpRefIn);
 
   // Set OutPort buffers
-
+  addOutPort("tilt", m_tiltOut);
+  
   // Set service provider to Ports
 
   // Set service consumers to Ports
@@ -158,6 +161,9 @@ RTC::ReturnCode_t TiltEstimator::onShutdown(RTC::UniqueId ec_id)
 RTC::ReturnCode_t TiltEstimator::onActivated(RTC::UniqueId ec_id)
 {
   std::cout << m_profile.instance_name << ": onActivated(" << ec_id << ")" << std::endl;
+
+  RTC::Properties& prop = getProperties();
+  coil::stringTo(dt_, prop["dt"].c_str());
 
   return RTC::RTC_OK;
 }
@@ -269,6 +275,15 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
   estimator_.setMeasurement(ya, yg, k + 1);
   
   xk_ = estimator_.getEstimatedState(k + 1);
+
+  so::Vector3 tilt = xk_.tail(3);
+  
+  m_tilt.tm = m_q.tm;
+  m_tilt.data.x = tilt[0];
+  m_tilt.data.y = tilt[1];
+  m_tilt.data.z = tilt[2];
+
+  m_tiltOut.write();
   
   return RTC::RTC_OK;
 }

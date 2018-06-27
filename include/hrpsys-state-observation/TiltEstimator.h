@@ -124,6 +124,9 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   // DataOutPort declaration
   // <rtc-template block="outport_declare">
 
+  TimedVector3D m_tilt;
+  OutPort<TimedVector3D> m_tiltOut;
+  
   // </rtc-template>
 
   // CORBA Port declaration
@@ -140,7 +143,6 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   // <rtc-template block="consumer_declare">
 
   // </rtc-template>
-
   
   double dt_;
 
@@ -149,7 +151,7 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   
   hrp::BodyPtr m_robot;
 
-  stateObservation::Vector xk_;
+  stateObservation::Vector6 xk_;
 
   bool firstSample_;
 };
