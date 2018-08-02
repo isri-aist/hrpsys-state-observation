@@ -23,7 +23,7 @@ const double gyr_cov_const=1e-10;
 const double ori_acc_const=0.003;
 const double lin_acc_const=1e-13;
 const double state_cov_const=3e-14;
-const double state_init_cov_const=1e-8;
+const double state_init_cov_const=1e-5;
 
 const double sampling_time_const = 0.002;
 
