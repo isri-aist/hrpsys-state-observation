@@ -251,12 +251,6 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   filter_.setQ(q_);
   filter_.setR(r_);
 
-  coil::TimeValue coiltm(coil::gettimeofday());
-  Time tm;
-  tm.sec  = coiltm.sec();
-  tm.nsec = coiltm.usec() * 1000;
-
-
   // input from InPorts
   if (m_accIn.isNew()) m_accIn.read();
   if (m_rateIn.isNew()) m_rateIn.read();
@@ -346,7 +340,7 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   }
 
   // output to OutPorts
-  m_rpy.tm = tm;
+  m_rpy.tm = m_acc.tm;
   m_rpy.data.r = output[0];
   m_rpy.data.p = output[1];
   m_rpy.data.y = output[2];
