@@ -19,7 +19,8 @@
 namespace so=stateObservation;
 
 const double alpha_const = 200;
-const double beta_const = 15;
+const double beta_const = 5;
+const double gamma_const = 15;
 
 const double sampling_time_const = 0.002;
 
@@ -51,17 +52,18 @@ TiltEstimator::TiltEstimator(RTC::Manager* manager)
   m_rateIn("rate", m_rate),
   m_qIn("q", m_q),
   m_rpyBRefIn("rpyBRef", m_rpyBRef),
-  m_zmpRefIn("zmpRef", m_zmpRef),
+  m_pBRefIn("pBRef", m_pBRef),
   m_tiltOut("tilt", m_tilt),
 
   // </rtc-template>
-  estimator_(alpha_const, beta_const),
+  estimator_(alpha_const, beta_const, gamma_const),
   dt_(sampling_time_const),
   firstSample_(true)
 {
   estimator_.setSamplingTime(dt_);
-  
-  xk_ << so::Vector3::Zero(), so::Vector3(0, 0, 1);
+
+  xk_.resize(9);
+  xk_ << so::Vector3::Zero(), so::Vector3::Zero(), so::Vector3(0.49198, 0.66976, 0.55622);
   estimator_.setState(xk_, 0);
   std::cout << "Tilt Estimator constructor" << std::endl;
 }
@@ -86,7 +88,7 @@ RTC::ReturnCode_t TiltEstimator::onInitialize()
   addInPort("rate", m_rateIn);
   addInPort("q", m_qIn);
   addInPort("rpyBRef", m_rpyBRefIn);
-  addInPort("zmpRef", m_zmpRefIn);
+  addInPort("pBRef", m_pBRefIn);
 
   // Set OutPort buffers
   addOutPort("tilt", m_tiltOut);
@@ -210,13 +212,12 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     m_robot->rootLink()->w = wBRef;
   }
 
-  if (m_zmpRefIn.isNew()) {
+  if (m_pBRefIn.isNew()) {
 
-    m_zmpRefIn.read();
+    m_pBRefIn.read();
 
     so::Vector3 p;
-    p << m_zmpRef.data.x, m_zmpRef.data.y, m_zmpRef.data.z;
-    p = -m_robot->rootLink()->R * p;
+    p << m_pBRef.data.x, m_pBRef.data.y, m_pBRef.data.z;
 
     so::Vector3 vBRef;
     if (firstSample_)
