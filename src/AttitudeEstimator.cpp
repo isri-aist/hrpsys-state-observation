@@ -7,11 +7,11 @@
  * $Id$
  */
 
+#include <hrpsys-state-observation/VectorConvert.h>
 #include <hrpUtil/Eigen3d.h>
 #include <Eigen/Geometry>
 
 #include <hrpsys-state-observation/AttitudeEstimator.h>
-#include <hrpsys-state-observation/VectorConvert.h>
 
 namespace so=stateObservation;
 
