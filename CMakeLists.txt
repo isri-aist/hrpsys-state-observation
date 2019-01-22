@@ -158,7 +158,7 @@ SET(${PROJECT_NAME}_HEADERS
 	${PROJECT_SOURCE_DIR}/include/hrpsys-state-observation/KineticsObserver.h
 )
 
-option(BUILD_TILT_ESTIMATOR "Building Tilt Estimator" OFF)
+option(BUILD_TILT_ESTIMATOR "Building Tilt Estimator" ON)
 
 if(BUILD_TILT_ESTIMATOR)
   SET(${PROJECT_NAME}_HEADERS
