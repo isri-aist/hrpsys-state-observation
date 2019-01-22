@@ -6,6 +6,7 @@
  *
  * $Id$
  */
+#include <hrpsys-state-observation/VectorConvert.h>
 #include <hrpsys-state-observation/KineticsObserver.h>
 #include <hrpUtil/Eigen3d.h>
 #include <Eigen/Geometry>
@@ -16,7 +17,6 @@
 using namespace motion_generator;
 
 
-#include <hrpsys-state-observation/VectorConvert.h>
 
 namespace so=stateObservation;
 

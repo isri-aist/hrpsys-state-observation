@@ -10,6 +10,8 @@
 #ifndef AttitudeEstimator_H
 #define AttitudeEstimator_H
 
+#include <rtm/idl/BasicDataType.hh>
+#include <rtm/idl/ExtendedDataTypes.hh>
 #include <rtm/Manager.h>
 #include <rtm/DataFlowComponentBase.h>
 #include <rtm/CorbaPort.h>

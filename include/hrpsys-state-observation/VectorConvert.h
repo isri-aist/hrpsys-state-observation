@@ -4,6 +4,13 @@
 #include <ostream>
 #include <vector>
 #include <string>
+
+// Clang (and apparently ISO C++) doesn't like it when functions are not
+// declared before use, *even when the use occurs in templates*.
+
+template<typename T>
+std::istream& operator>>(std::istream& is, std::vector<T>& v);
+
 #include <coil/stringutil.h>
 
 template<typename T>
