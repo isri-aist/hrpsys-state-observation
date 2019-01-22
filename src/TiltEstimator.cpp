@@ -205,6 +205,7 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
   estimator_.setGamma(m_gamma);
   
   so::Vector3 ya, yg;
+  so::Vector3 v_C;
   
   if (m_accIn.isNew()) {
     m_accIn.read();
@@ -258,11 +259,10 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     m_robot->rootLink()->p = p;
     m_robot->rootLink()->v = v;
 
-    so::Vector3 vF;
     if (firstSample_)
-      vF.setZero();
+      v_C.setZero();
     else
-      vF = (pF - m_pF_prev) / dt_;
+      v_C = (pF - m_pF_prev) / dt_;
     
     m_pF_prev = pF;
   }
@@ -308,6 +308,7 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
   estimator_.setSensorOrientationInC(R_S_C);
   estimator_.setSensorLinearVelocityInC(v_S_C);
   estimator_.setSensorAngularVelocityInC(w_S_C);
+  estimator_.setControlOriginVelocityInW(v_C);
 
   int k = estimator_.getCurrentTime();
 
