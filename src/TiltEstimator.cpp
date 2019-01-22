@@ -16,13 +16,17 @@
 #include <state-observation/tools/rigid-body-kinematics.hpp>
 #include <hrpsys-state-observation/TiltEstimator.h>
 
-namespace so=stateObservation;
+namespace so = stateObservation;
 
 const double alpha_const = 200;
 const double beta_const = 5;
 const double gamma_const = 15;
 
 const double sampling_time_const = 0.002;
+
+static const std::string alpha_char = so::tools::toString(alpha_const);
+static const std::string beta_char  = so::tools::toString(beta_const);
+static const std::string gamma_char = so::tools::toString(gamma_const);
 
 // Module specification
 // <rtc-template block="module_spec">
@@ -39,6 +43,9 @@ static const char* TiltEstimator_spec[] =
   "language",          "C++",
   "lang_type",         "compile",
   // Configuration variables
+  "conf.default.alpha", alpha_char.c_str(),
+  "conf.default.beta", beta_char.c_str(),
+  "conf.default.gamma", gamma_char.c_str(),
   ""
 };
 // </rtc-template>
@@ -51,19 +58,24 @@ TiltEstimator::TiltEstimator(RTC::Manager* manager)
   m_accIn("acc", m_acc),
   m_rateIn("rate", m_rate),
   m_qIn("q", m_q),
-  m_rpyBRefIn("rpyBRef", m_rpyBRef),
-  m_pBRefIn("pBRef", m_pBRef),
-  m_tiltOut("tilt", m_tilt),
+  m_rpyBEstIn("rpyBEst", m_rpyBEst),
+  m_pBEstIn("pBEst", m_pBEst),
+  m_rpyFEstIn("rpyFEst", m_rpyFEst),
+  m_pFEstIn("pFEst", m_pFEst),
+  m_rpySOut("rpyS", m_rpyS),
 
   // </rtc-template>
-  estimator_(alpha_const, beta_const, gamma_const),
+  m_alpha(alpha_const),
+  m_beta(beta_const),
+  m_gamma(gamma_const),
+  estimator_(m_alpha, m_beta, m_gamma),
   dt_(sampling_time_const),
   firstSample_(true)
 {
   estimator_.setSamplingTime(dt_);
 
   xk_.resize(9);
-  xk_ << so::Vector3::Zero(), so::Vector3::Zero(), so::Vector3(0.49198, 0.66976, 0.55622);
+  xk_ << so::Vector3::Zero(), so::Vector3::Zero(), so::Vector3(0, 0, 1); // so::Vector3(0.49198, 0.66976, 0.55622);
   estimator_.setState(xk_, 0);
   std::cout << "Tilt Estimator constructor" << std::endl;
 }
@@ -87,11 +99,13 @@ RTC::ReturnCode_t TiltEstimator::onInitialize()
   addInPort("acc", m_accIn);
   addInPort("rate", m_rateIn);
   addInPort("q", m_qIn);
-  addInPort("rpyBRef", m_rpyBRefIn);
-  addInPort("pBRef", m_pBRefIn);
+  addInPort("rpyBEst", m_rpyBEstIn);
+  addInPort("pBEst", m_pBEstIn);
+  addInPort("rpyFEst", m_rpyFEstIn);
+  addInPort("pFEst", m_pFEstIn);
 
   // Set OutPort buffers
-  addOutPort("tilt", m_tiltOut);
+  addOutPort("rpyS", m_rpySOut);
   
   // Set service provider to Ports
 
@@ -103,6 +117,9 @@ RTC::ReturnCode_t TiltEstimator::onInitialize()
 
   // <rtc-template block="bind_config">
   // Bind variables and configuration variable
+  bindParameter("alpha", m_alpha, alpha_char.c_str());
+  bindParameter("beta",  m_beta,  beta_char.c_str());
+  bindParameter("gamma", m_gamma, gamma_char.c_str());
 
   RTC::Properties& prop = getProperties();
   coil::stringTo(dt_, prop["dt"].c_str());
@@ -183,6 +200,10 @@ RTC::ReturnCode_t TiltEstimator::onDeactivated(RTC::UniqueId ec_id)
 
 RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
 {
+  estimator_.setAlpha(m_alpha);
+  estimator_.setBeta(m_beta);
+  estimator_.setGamma(m_gamma);
+  
   so::Vector3 ya, yg;
   
   if (m_accIn.isNew()) {
@@ -195,38 +216,55 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     yg << m_rate.data.avx, m_rate.data.avy, m_rate.data.avz;
   }
   
-  if (m_rpyBRefIn.isNew()) {
+  if (m_rpyBEstIn.isNew() || m_rpyFEstIn.isNew()) {
 
-    m_rpyBRefIn.read();
+    m_rpyBEstIn.read();
+    m_rpyFEstIn.read();
+
+    so::Matrix3 RB = so::kine::rollPitchYawToRotationMatrix(m_rpyBEst.data.r, m_rpyBEst.data.p, m_rpyBEst.data.y);
+    so::Matrix3 RF = so::kine::rollPitchYawToRotationMatrix(m_rpyFEst.data.r, m_rpyFEst.data.p, m_rpyFEst.data.y);
     
-    so::Matrix3 R = so::kine::rollPitchYawToRotationMatrix(m_rpyBRef.data.r, m_rpyBRef.data.p, m_rpyBRef.data.y);
+    so::Matrix3 R = RF.transpose() * RB;
 
-    so::Vector3 wBRef;
+    so::Vector3 w;
     if (firstSample_)
-      wBRef.setZero();
+      w.setZero();
     else {
-      wBRef = so::kine::rotationMatrixToRotationVector(R * m_robot->rootLink()->R.transpose()) / dt_;
+      w = so::kine::rotationMatrixToRotationVector(R * m_robot->rootLink()->R.transpose()) / dt_;
     }
     
     m_robot->rootLink()->R = R;
-    m_robot->rootLink()->w = wBRef;
+    m_robot->rootLink()->w = w;
   }
 
-  if (m_pBRefIn.isNew()) {
+  if (m_pBEstIn.isNew() || m_pFEstIn.isNew()) {
 
-    m_pBRefIn.read();
+    m_pBEstIn.read();
+    m_pFEstIn.read();
 
-    so::Vector3 p;
-    p << m_pBRef.data.x, m_pBRef.data.y, m_pBRef.data.z;
+    so::Vector3 pB;
+    pB << m_pBEst.data.x, m_pBEst.data.y, m_pBEst.data.z;
+    so::Vector3 pF;
+    pF << m_pFEst.data.x, m_pFEst.data.y, m_pFEst.data.z;
 
-    so::Vector3 vBRef;
+    so::Vector3 p = pB - pF;
+
+    so::Vector3 v;
     if (firstSample_)
-      vBRef.setZero();
+      v.setZero();
     else
-      vBRef = (p - m_robot->rootLink()->p) / dt_;
+      v = (p - m_robot->rootLink()->p) / dt_;
 
     m_robot->rootLink()->p = p;
-    m_robot->rootLink()->v = vBRef;
+    m_robot->rootLink()->v = v;
+
+    so::Vector3 vF;
+    if (firstSample_)
+      vF.setZero();
+    else
+      vF = (pF - m_pF_prev) / dt_;
+    
+    m_pF_prev = pF;
   }
   
   if (m_qIn.isNew()) {
@@ -279,12 +317,12 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
 
   so::Vector3 tilt = xk_.tail(3);
   
-  m_tilt.tm = m_q.tm;
-  m_tilt.data.x = tilt[0];
-  m_tilt.data.y = tilt[1];
-  m_tilt.data.z = tilt[2];
+  m_rpyS.tm = m_q.tm;
+  m_rpyS.data.r = atan2( tilt[1], tilt[2]);
+  m_rpyS.data.p = atan2(-tilt[0], sqrt(tilt[1]*tilt[1] + tilt[2]*tilt[2]));
+  m_rpyS.data.y = m_rpyBEst.data.y;
 
-  m_tiltOut.write();
+  m_rpySOut.write();
   
   return RTC::RTC_OK;
 }

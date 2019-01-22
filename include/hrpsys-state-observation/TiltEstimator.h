@@ -95,7 +95,10 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   
   // Configuration variable declaration
   // <rtc-template block="config_declare">
-
+  double m_alpha;
+  double m_beta;
+  double m_gamma;
+  
   // </rtc-template>
 
   // DataInPort declaration
@@ -110,22 +113,30 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   TimedDoubleSeq m_q;
   InPort<TimedDoubleSeq> m_qIn;
 
-  // The RPY angles for the reference orientation of the waist ({B})
-  TimedOrientation3D m_rpyBRef;
-  InPort<TimedOrientation3D> m_rpyBRefIn;
+  // The RPY angles for the estimated orientation of the waist ({B})
+  TimedOrientation3D m_rpyBEst;
+  InPort<TimedOrientation3D> m_rpyBEstIn;
 
-  // The position reference for the waist ({B})
-  TimedPoint3D m_pBRef;
-  InPort<TimedPoint3D> m_pBRefIn;
+  // The estimated position of the waist ({B})
+  TimedPoint3D m_pBEst;
+  InPort<TimedPoint3D> m_pBEstIn;
+
+  // The RPY angles for the estimated orientation of the control frame ({F})
+  TimedOrientation3D m_rpyFEst;
+  InPort<TimedOrientation3D> m_rpyFEstIn;
+
+  // The estimated position of the control frame ({F})
+  TimedPoint3D m_pFEst;
+  InPort<TimedPoint3D> m_pFEstIn;
   
   // </rtc-template>
 
   // DataOutPort declaration
   // <rtc-template block="outport_declare">
 
-  // The observed tilt of the waist ({B})
-  TimedVector3D m_tilt;
-  OutPort<TimedVector3D> m_tiltOut;
+  // The observed tilt of the sensor ({S})
+  TimedOrientation3D m_rpyS;
+  OutPort<TimedOrientation3D> m_rpySOut;
   
   // </rtc-template>
 
@@ -143,7 +154,8 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   // <rtc-template block="consumer_declare">
 
   // </rtc-template>
-  
+
+  stateObservation::Vector3 m_pF_prev;
   double dt_;
 
   /// Instance of the Tilt Estimator
