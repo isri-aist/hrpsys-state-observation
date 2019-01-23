@@ -152,20 +152,11 @@ endif()
 include(CPack)
 
 
-
 SET(${PROJECT_NAME}_HEADERS
 	${PROJECT_SOURCE_DIR}/include/hrpsys-state-observation/AttitudeEstimator.h
 	${PROJECT_SOURCE_DIR}/include/hrpsys-state-observation/KineticsObserver.h
-)
-
-option(BUILD_TILT_ESTIMATOR "Building Tilt Estimator" ON)
-
-if(BUILD_TILT_ESTIMATOR)
-  SET(${PROJECT_NAME}_HEADERS
-        ${${PROJECT_NAME}_HEADERS}
         ${PROJECT_SOURCE_DIR}/include/hrpsys-state-observation/TiltEstimator.h
 )
-endif()
 
 
 # Add subdirectories.
