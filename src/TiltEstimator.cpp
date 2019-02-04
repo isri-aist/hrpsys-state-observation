@@ -276,9 +276,6 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
 
     for (unsigned i = 0; i < m_robot->numJoints(); i++) {
 
-      hrp::Link* test = m_robot->joint(i);
-      test->q;
-
       if (firstSample_)
         dq[i] = 0;
       else
