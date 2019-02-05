@@ -216,6 +216,8 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     m_rateIn.read();
     yg << m_rate.data.avx, m_rate.data.avy, m_rate.data.avz;
   }
+
+  so::Matrix3 RF;
   
   if (m_rpyBEstIn.isNew() || m_rpyFEstIn.isNew()) {
 
@@ -223,7 +225,7 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     m_rpyFEstIn.read();
 
     so::Matrix3 RB = so::kine::rollPitchYawToRotationMatrix(m_rpyBEst.data.r, m_rpyBEst.data.p, m_rpyBEst.data.y);
-    so::Matrix3 RF = so::kine::rollPitchYawToRotationMatrix(m_rpyFEst.data.r, m_rpyFEst.data.p, m_rpyFEst.data.y);
+    RF = so::kine::rollPitchYawToRotationMatrix(m_rpyFEst.data.r, m_rpyFEst.data.p, m_rpyFEst.data.y);
     
     so::Matrix3 R = RF.transpose() * RB;
 
@@ -248,7 +250,7 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     so::Vector3 pF;
     pF << m_pFEst.data.x, m_pFEst.data.y, m_pFEst.data.z;
 
-    so::Vector3 p = pB - pF;
+    so::Vector3 p = RF.transpose()*(pB - pF);
 
     so::Vector3 v;
     if (firstSample_)
@@ -262,7 +264,7 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     if (firstSample_)
       v_C.setZero();
     else
-      v_C = (pF - m_pF_prev) / dt_;
+      v_C = RF.transpose() * (pF - m_pF_prev) / dt_;
     
     m_pF_prev = pF;
   }
