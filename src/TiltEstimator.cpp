@@ -329,7 +329,14 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
   m_rpyS.tm = m_q.tm;
 
   m_rpySOut.write();
-  
+
+  if (fabs(m_gamma - 15.5)<0.01)
+  {
+    estimator_.saveLog();
+    m_gamma = 15;
+  }
+
+
   return RTC::RTC_OK;
 }
 
