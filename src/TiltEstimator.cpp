@@ -316,11 +316,17 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
   xk_ = estimator_.getEstimatedState(k + 1);
 
   so::Vector3 tilt = xk_.tail(3);
-  
+
+  so::Vector3 rpy = so::kine::rotationMatrixToRollPitchYaw(
+                      so::kine::mergeTiltWithYaw(
+                        tilt, so::kine::rollPitchYawToRotationMatrix(
+                                              m_rpyBEst.data.r,m_rpyBEst.data.p,m_rpyBEst.data.y)));
+
+  m_rpyS.data.r = rpy(0);
+  m_rpyS.data.p = rpy(1);
+  m_rpyS.data.y = rpy(2);
+
   m_rpyS.tm = m_q.tm;
-  m_rpyS.data.r = atan2( tilt[1], tilt[2]);
-  m_rpyS.data.p = atan2(-tilt[0], sqrt(tilt[1]*tilt[1] + tilt[2]*tilt[2]));
-  m_rpyS.data.y = m_rpyBEst.data.y;
 
   m_rpySOut.write();
   
