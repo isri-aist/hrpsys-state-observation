@@ -204,8 +204,9 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
   estimator_.setBeta(m_beta);
   estimator_.setGamma(m_gamma);
   
-  so::Vector3 ya, yg;
-  so::Vector3 v_C;
+  so::Vector3 ya  = so::Vector3::Zero();
+  so::Vector3 yg  = so::Vector3::Zero();
+  so::Vector3 v_C = so::Vector3::Zero();
   
   if (m_accIn.isNew()) {
     m_accIn.read();
@@ -217,7 +218,7 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     yg << m_rate.data.avx, m_rate.data.avy, m_rate.data.avz;
   }
 
-  so::Matrix3 RF;
+  so::Matrix3 RF = so::Matrix3::Identity();
   
   if (m_rpyBEstIn.isNew() || m_rpyFEstIn.isNew()) {
 
