@@ -256,12 +256,7 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
   
   if (lastStateInitCovariance_!=m_stateInitCov) /// if the value of the state Init Covariance has changed
   {  
-    std::cout << "change the covariance" << std::endl;
-    std::cout << "previous" << std::endl;
-    std::cout << filter_.getStateCovariance();
     filter_.setStateCovariance(so::Matrix::Identity(stateSize_,stateSize_)*m_stateInitCov); 
-    std::cout << "new" << std::endl;
-    std::cout << filter_.getStateCovariance()<< std::endl;
     lastStateInitCovariance_ = m_stateInitCov; 
   }
   
