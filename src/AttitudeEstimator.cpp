@@ -104,6 +104,8 @@ AttitudeEstimator::AttitudeEstimator(RTC::Manager* manager)
   filter_.setState(xk_,0);
   filter_.setStateCovariance(so::Matrix::Identity(stateSize_,stateSize_)*m_stateInitCov);
 
+  lastStateInitCovariance_ =m_stateInitCov;
+
   Kpt_<<-20,0,0,
        0,-20,0,
        0,0,-20;
@@ -250,6 +252,19 @@ RTC::ReturnCode_t AttitudeEstimator::onExecute(RTC::UniqueId ec_id)
 
   filter_.setQ(q_);
   filter_.setR(r_);
+
+  
+  if (lastStateInitCovariance_!=m_stateInitCov) /// if the value of the state Init Covariance has changed
+  {  
+    std::cout << "change the covariance" << std::endl;
+    std::cout << "previous" << std::endl;
+    std::cout << filter_.getStateCovariance();
+    filter_.setStateCovariance(so::Matrix::Identity(stateSize_,stateSize_)*m_stateInitCov); 
+    std::cout << "new" << std::endl;
+    std::cout << filter_.getStateCovariance()<< std::endl;
+    lastStateInitCovariance_ = m_stateInitCov; 
+  }
+  
 
   // input from InPorts
   if (m_accIn.isNew()) m_accIn.read();

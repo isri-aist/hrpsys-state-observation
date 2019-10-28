@@ -152,6 +152,8 @@ protected:
   const unsigned measurementSize_=6;
   const unsigned inputSize_=6;
 
+  double lastStateInitCovariance_;
+
   double dt_;
 
   ///initialization of the extended Kalman filter
