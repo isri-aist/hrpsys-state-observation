@@ -11,6 +11,7 @@
 #define TiltEstimator_H
 
 #include <rtm/CorbaNaming.h>
+#include <rtm/idl/ExtendedDataTypes.hh>
 #include <rtm/Manager.h>
 #include <rtm/DataFlowComponentBase.h>
 #include <rtm/CorbaPort.h>
