@@ -1,4 +1,4 @@
-// -*- C++ -*-
+// -*- mode: c++; indent-tabs-mode: nil; tab-width: 2; c-basic-offset: 2; -*-
 /*!
  * @file  TiltEstimator.cpp
  * @brief TiltEstimator filter component
@@ -69,6 +69,7 @@ TiltEstimator::TiltEstimator(RTC::Manager* manager)
   m_beta(beta_const),
   m_gamma(gamma_const),
   estimator_(m_alpha, m_beta, m_gamma),
+  m_pF_prev(so::Vector3::Zero()),
   dt_(sampling_time_const),
   firstSample_(true)
 {

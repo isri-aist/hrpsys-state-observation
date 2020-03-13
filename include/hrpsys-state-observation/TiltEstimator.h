@@ -1,4 +1,4 @@
-// -*- C++ -*-
+// -*- mode: c++; indent-tabs-mode: nil; tab-width: 2; c-basic-offset: 2; -*-
 /*!
  * @file  TiltEstimator.h
  * @brief TiltEstimator component
