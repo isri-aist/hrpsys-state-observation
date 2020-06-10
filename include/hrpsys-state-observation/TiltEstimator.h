@@ -138,6 +138,25 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   // The observed tilt of the sensor ({S})
   TimedOrientation3D m_rpyS;
   OutPort<TimedOrientation3D> m_rpySOut;
+
+  // Additional data
+  TimedPoint3D m_pSC;
+  OutPort<TimedPoint3D> m_pSCOut;
+
+  TimedOrientation3D m_rpySC;
+  OutPort<TimedOrientation3D> m_rpySCOut;
+
+  TimedVector3D m_vSC;
+  OutPort<TimedVector3D> m_vSCOut;
+
+  TimedAngularVelocity3D m_wSC;
+  OutPort<TimedAngularVelocity3D> m_wSCOut;
+
+  TimedVector3D m_vC;
+  OutPort<TimedVector3D> m_vCOut;
+
+  TimedDoubleSeq m_xk;
+  OutPort<TimedDoubleSeq> m_xkOut;
   
   // </rtc-template>
 
@@ -167,6 +186,16 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   stateObservation::Vector xk_;
 
   bool firstSample_;
+
+  /// Auxiliar variables
+
+  stateObservation::Vector3 ya_;
+  stateObservation::Vector3 yg_;
+  stateObservation::Vector3 v_C_;
+  stateObservation::Vector3 p_S_C_;
+  stateObservation::Matrix3 R_S_C_;
+  stateObservation::Vector3 v_S_C_;
+  stateObservation::Vector3 w_S_C_;
 };
 
 
