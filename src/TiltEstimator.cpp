@@ -210,6 +210,21 @@ RTC::ReturnCode_t TiltEstimator::onActivated(RTC::UniqueId ec_id)
   RTC::Properties& prop = getProperties();
   coil::stringTo(dt_, prop["dt"].c_str());
 
+  m_acc.data.ax   = m_acc.data.ay   = m_acc.data.az   = 0.0;
+  m_rate.data.avx = m_rate.data.avy = m_rate.data.avz = 0.0;
+
+  dof_ = m_robot->numJoints();
+  m_q.data.length(dof_);
+  
+  for (size_t i = 0; i < dof_; i++)
+    m_q.data[i] = 0.0;
+
+  m_rpyBEst.data.r = m_rpyBEst.data.p = m_rpyBEst.data.y = 0.0;
+  m_pBEst.data.x   = m_pBEst.data.y   = m_pBEst.data.z   = 0.0;
+
+  m_rpyFEst.data.r = m_rpyFEst.data.p = m_rpyFEst.data.y = 0.0;
+  m_pFEst.data.x   = m_pFEst.data.y   = m_pFEst.data.z   = 0.0;
+  
   return RTC::RTC_OK;
 }
 
@@ -294,9 +309,9 @@ RTC::ReturnCode_t TiltEstimator::onExecute(RTC::UniqueId ec_id)
     m_qIn.read();
 
     so::Vector dq;
-    dq.setZero(m_robot->numJoints());
+    dq.setZero(dof_);
 
-    for (unsigned i = 0; i < m_robot->numJoints(); i++) {
+    for (unsigned i = 0; i < dof_; i++) {
 
       if (firstSample_)
         dq[i] = 0;

@@ -182,6 +182,7 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   stateObservation::TiltEstimator estimator_;
   
   hrp::BodyPtr m_robot;
+  size_t dof_;
 
   stateObservation::Vector xk_;
 
