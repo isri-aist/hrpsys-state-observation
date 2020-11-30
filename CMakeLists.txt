@@ -21,6 +21,9 @@ SET(CUSTOM_HEADER_DIR "${PROJECT_NAME}")
 # Disable -Werror on Unix for now.
 SET(CXX_DISABLE_WERROR True)
 
+#set compilation options to c++11
+set(CMAKE_CXX_STANDARD 11)
+
 SET(PKG_CONFIG_ADDITIONAL_VARIABLES
   ${PKG_CONFIG_ADDITIONAL_VARIABLES}
   plugindirname
