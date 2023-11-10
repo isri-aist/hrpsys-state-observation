@@ -21,7 +21,7 @@
 #include <rtm/idl/ExtendedDataTypesSkel.h>
 #include <hrpModel/Body.h>
 
-#include <state-observation/observer/tilt-estimator.hpp>
+#include <state-observation/observer/tilt-estimator-humanoid.hpp>
 
 // Service implementation headers
 // <rtc-template block="service_impl_h">
@@ -160,7 +160,7 @@ class TiltEstimator : public RTC::DataFlowComponentBase
   double dt_;
 
   /// Instance of the Tilt Estimator
-  stateObservation::TiltEstimator estimator_;
+  stateObservation::TiltEstimatorHumanoid estimator_;
   
   hrp::BodyPtr m_robot;
 
